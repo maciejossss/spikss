@@ -14,5 +14,6 @@ numReplicas = 1
 NODE_ENV = "production"
 PORT = "8080"
 DATABASE_URL = "${DATABASE_URL}"
+SKIP_DB_INIT = "true"
 
 # Railway automatycznie dostarczy wszystkie potrzebne zmienne środowiskowe dla bazy danych 

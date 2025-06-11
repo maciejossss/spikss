@@ -192,6 +192,11 @@ class Application {
      * Initialize database connection
      */
     async initializeDatabase() {
+        if (process.env.SKIP_DB_INIT === 'true') {
+            ModuleErrorHandler.logger.info('Skipping database initialization (SKIP_DB_INIT=true)');
+            return;
+        }
+        
         await DatabaseService.initialize();
         ModuleErrorHandler.logger.info('Database connection established');
     }

@@ -5,7 +5,7 @@
   "main": "src/app.js",
   "scripts": {
     "start": "node src/app.js",
-    "start-with-init": "node src/shared/database/init.js && node src/app.js",
+    "start-with-init": "cross-env SKIP_DB_INIT=true node src/app.js",
     "dev": "nodemon src/app.js",
     "test": "jest",
     "test:watch": "jest --watch",
@@ -14,7 +14,7 @@
     "seed": "node src/shared/database/seed.js",
     "init-db": "node src/shared/database/init.js",
     "build": "cd frontend && npm install && npm run build",
-    "start-prod": "npm run build && npm run start-with-init"
+    "start-prod": "npm run init-db && npm run start-with-init"
   },
   "keywords": ["service", "heating", "boilers", "burners", "maintenance"],
   "author": "System Serwisowy Team",
@@ -37,7 +37,8 @@
     "uuid": "^9.0.1",
     "express-async-handler": "^1.2.0",
     "cookie-parser": "^1.4.7",
-    "cookie": "^0.7.2"
+    "cookie": "^0.7.2",
+    "cross-env": "^7.0.3"
   },
   "devDependencies": {
     "nodemon": "^3.0.2",

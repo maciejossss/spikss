@@ -197,49 +197,13 @@ class Application {
 
         // Health check endpoint (no auth required)
         this.app.get('/health', this.healthCheckHandler.bind(this));
+        this.app.get('/zdrowie', this.healthCheckHandler.bind(this));
         
         // Authentication endpoints (no auth required for login)
         this.setupAuthRoutes(apiPrefix);
 
         // Module routes (auth required)
         this.setupModuleRoutes(apiPrefix);
-
-        // Health check endpoint
-        this.app.get('/zdrowie', async (req, res) => {
-            try {
-                const dbHealth = await DatabaseService.healthCheck();
-                if (dbHealth.status === 'healthy') {
-                    res.status(200).json({ 
-                        status: 'healthy', 
-                        timestamp: new Date().toISOString(),
-                        database: dbHealth,
-                        environment: process.env.NODE_ENV,
-                        version: '1.0.0'
-                    });
-                } else {
-                    res.status(503).json({ 
-                        status: 'unhealthy', 
-                        timestamp: new Date().toISOString(),
-                        database: dbHealth 
-                    });
-                }
-            } catch (error) {
-                res.status(503).json({ 
-                    status: 'unhealthy', 
-                    timestamp: new Date().toISOString(),
-                    error: error.message 
-                });
-            }
-        });
-
-        // 404 handler
-        this.app.use('*', (req, res) => {
-            res.status(404).json({
-                success: false,
-                message: 'Endpoint not found',
-                path: req.originalUrl
-            });
-        });
     }
 
     /**
@@ -633,18 +597,22 @@ class Application {
             await this.initialize();
             
             this.server = this.app.listen(this.port, () => {
+                const baseUrl = process.env.NODE_ENV === 'production' 
+                    ? process.env.APP_URL || `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` 
+                    : `http://localhost:${this.port}`;
+                
                 ModuleErrorHandler.logger.info(`🚀 System Serwisowy started on port ${this.port}`);
-                ModuleErrorHandler.logger.info(`📊 Health check: http://localhost:${this.port}/health`);
-                ModuleErrorHandler.logger.info(`🔑 API Base: http://localhost:${this.port}${process.env.API_PREFIX || '/api/v1'}`);
+                ModuleErrorHandler.logger.info(`📊 Health check: ${baseUrl}/zdrowie`);
+                ModuleErrorHandler.logger.info(`🔑 API Base: ${baseUrl}${process.env.API_PREFIX || '/api/v1'}`);
             });
 
-            // Set server timeouts to prevent hanging connections
-            this.server.keepAliveTimeout = 30000; // 30 seconds (zmniejszone z 65s)
-            this.server.headersTimeout = 35000; // 35 seconds (zmniejszone z 66s)
-            this.server.timeout = 60000; // 1 minute (zmniejszone z 2 minut)
+            // Set server timeouts
+            this.server.keepAliveTimeout = 65000;
+            this.server.headersTimeout = 66000;
+            this.server.timeout = 120000;
             
-            // Set maximum connections - bardziej restrykcyjnie
-            this.server.maxConnections = 25; // Zmniejszone z 50
+            // Set maximum connections
+            this.server.maxConnections = 50;
             
             // Monitor connection count and auto-cleanup
             this.connectionMonitor = setInterval(() => {
@@ -652,19 +620,13 @@ class Application {
                     const connections = this.server.connections || 0;
                     ModuleErrorHandler.logger.info(`Active connections: ${connections}`);
                     
-                    if (connections > 20) {
+                    if (connections > 40) {
                         ModuleErrorHandler.logger.warn(`High connection count: ${connections} - triggering cleanup`);
                         // Force close idle connections
                         this.server.closeIdleConnections?.();
                     }
-                    
-                    if (connections > 30) {
-                        ModuleErrorHandler.logger.error(`Critical connection count: ${connections} - forcing aggressive cleanup`);
-                        // More aggressive cleanup if available
-                        this.server.closeAllConnections?.();
-                    }
                 }
-            }, 15000); // Check every 15 seconds
+            }, 15000);
 
             // Add connection event listeners
             this.server.on('connection', (socket) => {

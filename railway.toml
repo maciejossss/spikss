@@ -12,7 +12,7 @@ numReplicas = 1
 
 [deploy.env]
 NODE_ENV = "production"
-PORT = "3000"
+PORT = "8080"
 DATABASE_URL = "${DATABASE_URL}"
 
 # Railway automatycznie dostarczy wszystkie potrzebne zmienne środowiskowe dla bazy danych 

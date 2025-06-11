@@ -32,6 +32,13 @@ class Application {
         this.modules = new Map();
         this.healthCheckInterval = null;
         this.logger = ModuleErrorHandler.logger;
+
+        // Log startup configuration
+        console.log('Starting application with configuration:', {
+            NODE_ENV: process.env.NODE_ENV,
+            PORT: this.port,
+            isProduction: this.isProduction
+        });
     }
 
     /**

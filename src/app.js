@@ -135,6 +135,18 @@ class Application {
         // Static files
         this.app.use('/static', express.static(path.join(__dirname, '../public')));
         
+        // Serve frontend files in production
+        if (this.isProduction) {
+            this.app.use(express.static(path.join(__dirname, '../frontend/dist')));
+            
+            // Handle React routing, return all requests to React app
+            this.app.get('*', (req, res) => {
+                if (!req.url.startsWith('/api/') && !req.url.startsWith('/health') && !req.url.startsWith('/zdrowie')) {
+                    res.sendFile(path.join(__dirname, '../frontend/dist', 'index.html'));
+                }
+            });
+        }
+        
         // Request logging with proper logger reference
         this.app.use((req, res, next) => {
             // Detailed request logging for debugging

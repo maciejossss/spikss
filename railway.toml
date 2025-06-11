@@ -8,6 +8,11 @@ healthcheckPath = "/health"
 healthcheckTimeout = 100
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3
+numReplicas = 1
 
 [deploy.env]
-NODE_ENV = "production" 
+NODE_ENV = "production"
+PORT = "3000"
+
+# Konfiguracja bazy danych jest dostarczana automatycznie przez Railway
+# poprzez zmienne PGHOST, PGPORT, PGDATABASE, PGUSER, PGPASSWORD 

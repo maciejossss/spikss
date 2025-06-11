@@ -27,17 +27,46 @@ const AuthService = require('./shared/auth/AuthService');
 class Application {
     constructor() {
         this.app = express();
-        this.port = process.env.PORT || 3000;
+        this.port = process.env.PORT || 8080;
         this.isProduction = process.env.NODE_ENV === 'production';
         this.modules = new Map();
         this.healthCheckInterval = null;
         this.logger = ModuleErrorHandler.logger;
 
-        // Log startup configuration
-        console.log('Starting application with configuration:', {
-            NODE_ENV: process.env.NODE_ENV,
-            PORT: this.port,
-            isProduction: this.isProduction
+        // Dodaj podstawowe endpointy przed inicjalizacją
+        this.setupBasicEndpoints();
+    }
+
+    setupBasicEndpoints() {
+        // Basic health check - dostępny od razu
+        this.app.get('/health', async (req, res) => {
+            try {
+                console.log('Health check requested');
+                // Sprawdź czy serwer Express działa
+                const status = {
+                    status: 'ok',
+                    timestamp: new Date().toISOString(),
+                    uptime: process.uptime(),
+                    memory: process.memoryUsage(),
+                    database: {
+                        connected: DatabaseService.isConnected
+                    }
+                };
+                
+                console.log('Health check response:', status);
+                res.json(status);
+            } catch (error) {
+                console.error('Health check failed:', error);
+                res.status(500).json({
+                    status: 'error',
+                    message: error.message
+                });
+            }
+        });
+
+        // Root endpoint
+        this.app.get('/', (req, res) => {
+            res.json({ status: 'ok', message: 'System Serwisowy API is running' });
         });
     }
 
@@ -45,6 +74,8 @@ class Application {
      * Initialize the application
      */
     async initialize() {
+        console.log('Starting application initialization...');
+        
         try {
             // Setup security and middleware
             this.setupSecurity();

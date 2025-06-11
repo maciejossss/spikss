@@ -13,10 +13,6 @@ numReplicas = 1
 [deploy.env]
 NODE_ENV = "production"
 PORT = "3000"
-PGHOST = "shuttle.proxy.rlwy.net"
-PGPORT = "15442"
-PGDATABASE = "railway"
-PGUSER = "postgres"
+DATABASE_URL = "${DATABASE_URL}"
 
-# Konfiguracja bazy danych jest dostarczana automatycznie przez Railway
-# poprzez zmienne PGHOST, PGPORT, PGDATABASE, PGUSER, PGPASSWORD 
+# Railway automatycznie dostarczy wszystkie potrzebne zmienne środowiskowe dla bazy danych 

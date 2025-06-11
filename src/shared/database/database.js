@@ -21,37 +21,48 @@ class DatabaseService {
             // Log all environment variables related to database connection
             console.log('Database connection environment variables:');
             console.log({
-                PGHOST: process.env.PGHOST,
-                PGPORT: process.env.PGPORT,
-                PGDATABASE: process.env.PGDATABASE,
-                PGUSER: process.env.PGUSER,
+                DATABASE_URL: process.env.DATABASE_URL ? '[HIDDEN]' : undefined,
                 NODE_ENV: process.env.NODE_ENV,
-                // Don't log the password!
             });
 
-            // Check required environment variables
-            const requiredEnvVars = ['PGHOST', 'PGDATABASE', 'PGUSER', 'PGPASSWORD'];
-            const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
+            let config;
             
-            if (missingEnvVars.length > 0) {
-                throw new Error(`Missing required environment variables: ${missingEnvVars.join(', ')}`);
-            }
+            if (process.env.DATABASE_URL) {
+                // Use connection string if available
+                config = {
+                    connectionString: process.env.DATABASE_URL,
+                    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+                    min: parseInt(process.env.DB_POOL_MIN) || 2,
+                    max: parseInt(process.env.DB_POOL_MAX) || 10,
+                    idleTimeoutMillis: 30000,
+                    connectionTimeoutMillis: 2000,
+                };
+            } else {
+                // Check required environment variables
+                const requiredEnvVars = ['PGHOST', 'PGDATABASE', 'PGUSER', 'PGPASSWORD'];
+                const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
+                
+                if (missingEnvVars.length > 0) {
+                    throw new Error(`Missing required environment variables: ${missingEnvVars.join(', ')}`);
+                }
 
-            const config = {
-                host: process.env.PGHOST,
-                port: parseInt(process.env.PGPORT) || 5432,
-                database: process.env.PGDATABASE,
-                user: process.env.PGUSER,
-                password: process.env.PGPASSWORD,
-                ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-                min: parseInt(process.env.DB_POOL_MIN) || 2,
-                max: parseInt(process.env.DB_POOL_MAX) || 10,
-                idleTimeoutMillis: 30000,
-                connectionTimeoutMillis: 2000,
-            };
+                config = {
+                    host: process.env.PGHOST,
+                    port: parseInt(process.env.PGPORT) || 5432,
+                    database: process.env.PGDATABASE,
+                    user: process.env.PGUSER,
+                    password: process.env.PGPASSWORD,
+                    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+                    min: parseInt(process.env.DB_POOL_MIN) || 2,
+                    max: parseInt(process.env.DB_POOL_MAX) || 10,
+                    idleTimeoutMillis: 30000,
+                    connectionTimeoutMillis: 2000,
+                };
+            }
 
             console.log('Database configuration (without sensitive data):', {
                 ...config,
+                connectionString: config.connectionString ? '[HIDDEN]' : undefined,
                 password: '[HIDDEN]'
             });
 

@@ -38,11 +38,18 @@ class Application {
     }
 
     setupBasicEndpoints() {
-        // Basic health check - dostępny od razu
+        // Serwowanie plików statycznych frontendu
+        this.app.use(express.static(path.join(__dirname, '../frontend/dist')));
+
+        // API endpoints
+        this.app.get('/api', (req, res) => {
+            res.json({ status: 'ok', message: 'System Serwisowy API is running' });
+        });
+
+        // Health check endpoint
         this.app.get('/health', async (req, res) => {
             try {
                 console.log('Health check requested');
-                // Sprawdź czy serwer Express działa
                 const status = {
                     status: 'ok',
                     timestamp: new Date().toISOString(),
@@ -64,9 +71,12 @@ class Application {
             }
         });
 
-        // Root endpoint
-        this.app.get('/', (req, res) => {
-            res.json({ status: 'ok', message: 'System Serwisowy API is running' });
+        // Wszystkie pozostałe ścieżki kieruj do frontendu (SPA routing)
+        this.app.get('*', (req, res) => {
+            // Nie przekierowuj requestów API
+            if (!req.url.startsWith('/api')) {
+                res.sendFile(path.join(__dirname, '../frontend/dist/index.html'));
+            }
         });
     }
 
@@ -172,18 +182,6 @@ class Application {
 
         // Static files
         this.app.use('/static', express.static(path.join(__dirname, '../public')));
-        
-        // Serve frontend files in production
-        if (this.isProduction) {
-            this.app.use(express.static(path.join(__dirname, '../frontend/dist')));
-            
-            // Handle React routing, return all requests to React app
-            this.app.get('*', (req, res) => {
-                if (!req.url.startsWith('/api/') && !req.url.startsWith('/health') && !req.url.startsWith('/zdrowie')) {
-                    res.sendFile(path.join(__dirname, '../frontend/dist', 'index.html'));
-                }
-            });
-        }
         
         // Request logging with proper logger reference
         this.app.use((req, res, next) => {

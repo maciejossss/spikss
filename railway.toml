@@ -1,6 +1,6 @@
 [build]
 builder = "NIXPACKS"
-buildCommand = "npm install"
+buildCommand = "npm install && cd frontend && npm install && npm run build && cd .."
 
 [deploy]
 startCommand = "npm run start-prod"
@@ -17,5 +17,6 @@ PORT = "8080"
 DATABASE_URL = "${DATABASE_URL}"
 SKIP_DB_INIT = "false"
 LOG_LEVEL = "debug"
+VITE_API_URL = "https://web-production-310c4.up.railway.app/api"
 
 # Railway automatycznie dostarczy wszystkie potrzebne zmienne środowiskowe dla bazy danych 

@@ -3,7 +3,7 @@ builder = "NIXPACKS"
 buildCommand = "npm install"
 
 [deploy]
-startCommand = "npm start"
+startCommand = "npm run start-with-init"
 healthcheckPath = "/zdrowie"
 healthcheckTimeout = 100
 restartPolicyType = "ON_FAILURE"
@@ -13,6 +13,10 @@ numReplicas = 1
 [deploy.env]
 NODE_ENV = "production"
 PORT = "3000"
+PGHOST = "shuttle.proxy.rlwy.net"
+PGPORT = "15442"
+PGDATABASE = "railway"
+PGUSER = "postgres"
 
 # Konfiguracja bazy danych jest dostarczana automatycznie przez Railway
 # poprzez zmienne PGHOST, PGPORT, PGDATABASE, PGUSER, PGPASSWORD 

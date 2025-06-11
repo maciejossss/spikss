@@ -216,6 +216,30 @@ class Application {
 
         // Module routes (auth required)
         this.setupModuleRoutes(apiPrefix);
+
+        // Add health check endpoint for Railway
+        this.app.get('/', (req, res) => {
+            res.json({ status: 'ok', message: 'System Serwisowy API is running' });
+        });
+        
+        // Add Railway health check endpoint
+        this.app.get('/health', async (req, res) => {
+            try {
+                const dbHealth = await DatabaseService.healthCheck();
+                res.json({
+                    status: 'ok',
+                    database: dbHealth,
+                    uptime: process.uptime(),
+                    memory: process.memoryUsage()
+                });
+            } catch (error) {
+                res.status(500).json({
+                    status: 'error',
+                    message: 'Health check failed',
+                    error: error.message
+                });
+            }
+        });
     }
 
     /**

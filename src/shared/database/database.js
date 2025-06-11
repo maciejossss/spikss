@@ -18,28 +18,69 @@ class DatabaseService {
      */
     async initialize() {
         try {
-            this.pool = new Pool({
-                host: process.env.DB_HOST || 'localhost',
-                port: process.env.DB_PORT || 5432,
-                database: process.env.DB_NAME || 'system_serwisowy',
-                user: process.env.DB_USER || 'postgres',
-                password: process.env.DB_PASSWORD,
+            // Log all environment variables related to database connection
+            console.log('Database connection environment variables:');
+            console.log({
+                PGHOST: process.env.PGHOST,
+                PGPORT: process.env.PGPORT,
+                PGDATABASE: process.env.PGDATABASE,
+                PGUSER: process.env.PGUSER,
+                NODE_ENV: process.env.NODE_ENV,
+                // Don't log the password!
+            });
+
+            // Check required environment variables
+            const requiredEnvVars = ['PGHOST', 'PGDATABASE', 'PGUSER', 'PGPASSWORD'];
+            const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
+            
+            if (missingEnvVars.length > 0) {
+                throw new Error(`Missing required environment variables: ${missingEnvVars.join(', ')}`);
+            }
+
+            const config = {
+                host: process.env.PGHOST,
+                port: parseInt(process.env.PGPORT) || 5432,
+                database: process.env.PGDATABASE,
+                user: process.env.PGUSER,
+                password: process.env.PGPASSWORD,
+                ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
                 min: parseInt(process.env.DB_POOL_MIN) || 2,
                 max: parseInt(process.env.DB_POOL_MAX) || 10,
                 idleTimeoutMillis: 30000,
                 connectionTimeoutMillis: 2000,
+            };
+
+            console.log('Database configuration (without sensitive data):', {
+                ...config,
+                password: '[HIDDEN]'
             });
 
+            this.pool = new Pool(config);
+
             // Test connection
+            console.log('Attempting to connect to database...');
             const client = await this.pool.connect();
-            await client.query('SELECT NOW()');
+            const result = await client.query('SELECT NOW()');
+            console.log('Database connection test successful:', result.rows[0]);
             client.release();
 
             this.isConnected = true;
             ModuleErrorHandler.logger.info('Database connection pool initialized successfully');
         } catch (error) {
             ModuleErrorHandler.logger.error('Failed to initialize database:', error);
-            throw error;
+            console.error('Detailed connection error:', {
+                code: error.code,
+                message: error.message,
+                detail: error.detail,
+                hint: error.hint,
+                position: error.position
+            });
+            
+            if (process.env.NODE_ENV === 'production') {
+                ModuleErrorHandler.logger.warn('Continuing despite database initialization error in production');
+            } else {
+                throw error;
+            }
         }
     }
 

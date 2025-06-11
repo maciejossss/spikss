@@ -11,7 +11,8 @@
     "test:coverage": "jest --coverage",
     "migrate": "node src/shared/database/migrate.js",
     "seed": "node src/shared/database/seed.js",
-    "postinstall": "node init-db.js",
+    "postinstall": "node src/shared/database/init.js",
+    "init-db": "node src/shared/database/init.js",
     "build": "echo 'No build step required'"
   },
   "keywords": ["service", "heating", "boilers", "burners", "maintenance"],

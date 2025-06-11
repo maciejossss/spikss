@@ -24,6 +24,56 @@ async function initializeDatabase() {
             );
         `);
 
+        // Create clients table
+        await DatabaseService.query(`
+            CREATE TABLE IF NOT EXISTS clients (
+                id SERIAL PRIMARY KEY,
+                name VARCHAR(100) NOT NULL,
+                address TEXT,
+                contact_person VARCHAR(100),
+                phone VARCHAR(20),
+                email VARCHAR(255),
+                notes TEXT,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+
+        // Create devices table
+        await DatabaseService.query(`
+            CREATE TABLE IF NOT EXISTS devices (
+                id SERIAL PRIMARY KEY,
+                client_id INTEGER REFERENCES clients(id),
+                type VARCHAR(50) NOT NULL,
+                model VARCHAR(100),
+                serial_number VARCHAR(100),
+                installation_date DATE,
+                last_service_date DATE,
+                next_service_date DATE,
+                status VARCHAR(20),
+                notes TEXT,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+
+        // Create service_records table
+        await DatabaseService.query(`
+            CREATE TABLE IF NOT EXISTS service_records (
+                id SERIAL PRIMARY KEY,
+                device_id INTEGER REFERENCES devices(id),
+                service_date DATE NOT NULL,
+                service_type VARCHAR(50),
+                description TEXT,
+                parts_replaced TEXT[],
+                technician_id INTEGER REFERENCES users(id),
+                status VARCHAR(20),
+                next_service_date DATE,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+
         // Check if admin user exists
         const adminResult = await DatabaseService.query(
             'SELECT * FROM users WHERE username = $1',

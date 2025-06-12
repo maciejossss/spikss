@@ -2,22 +2,23 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useAuthStore } from '@/stores/authStore'
 import { clientService } from '../services/clientService'
+import { Client, ClientFormData } from '../types/client.types'
 
 export const useClientStore = defineStore('client', () => {
   const authStore = useAuthStore()
   
   // State
-  const clients = ref([])
+  const clients = ref<Client[]>([])
   const loading = ref(false)
-  const error = ref(null)
-  const currentClient = ref(null)
+  const error = ref<string | null>(null)
+  const currentClient = ref<Client | null>(null)
   
   // Getters
   const totalClients = computed(() => clients.value.length)
   const activeClients = computed(() => clients.value.filter(client => client.status === 'active').length)
   
   const getClientById = computed(() => {
-    return (id) => clients.value.find(client => client.id === id)
+    return (id: number) => clients.value.find(client => client.id === id)
   })
   
   // Actions
@@ -28,14 +29,14 @@ export const useClientStore = defineStore('client', () => {
       const response = await clientService.getClients()
       clients.value = response.data
     } catch (err) {
-      error.value = err.message || 'Błąd podczas pobierania listy klientów'
+      error.value = err instanceof Error ? err.message : 'Błąd podczas pobierania listy klientów'
       throw error.value
     } finally {
       loading.value = false
     }
   }
 
-  const createClient = async (clientData) => {
+  const createClient = async (clientData: ClientFormData) => {
     try {
       loading.value = true
       error.value = null
@@ -43,14 +44,14 @@ export const useClientStore = defineStore('client', () => {
       clients.value.push(response.data)
       return response.data
     } catch (err) {
-      error.value = err.message || 'Błąd podczas tworzenia klienta'
+      error.value = err instanceof Error ? err.message : 'Błąd podczas tworzenia klienta'
       throw error.value
     } finally {
       loading.value = false
     }
   }
 
-  const updateClient = async (id, clientData) => {
+  const updateClient = async (id: number, clientData: ClientFormData) => {
     try {
       loading.value = true
       error.value = null
@@ -61,28 +62,28 @@ export const useClientStore = defineStore('client', () => {
       }
       return response.data
     } catch (err) {
-      error.value = err.message || 'Błąd podczas aktualizacji klienta'
+      error.value = err instanceof Error ? err.message : 'Błąd podczas aktualizacji klienta'
       throw error.value
     } finally {
       loading.value = false
     }
   }
 
-  const deleteClient = async (id) => {
+  const deleteClient = async (id: number) => {
     try {
       loading.value = true
       error.value = null
       await clientService.deleteClient(id)
       clients.value = clients.value.filter(client => client.id !== id)
     } catch (err) {
-      error.value = err.message || 'Błąd podczas usuwania klienta'
+      error.value = err instanceof Error ? err.message : 'Błąd podczas usuwania klienta'
       throw error.value
     } finally {
       loading.value = false
     }
   }
 
-  const setCurrentClient = (client) => {
+  const setCurrentClient = (client: Client | null) => {
     currentClient.value = client
   }
 

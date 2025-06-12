@@ -11,6 +11,8 @@ class DatabaseService {
     constructor() {
         this.pool = null;
         this.isConnected = false;
+        this.retryAttempts = 0;
+        this.maxRetries = 3;
     }
 
     /**
@@ -34,8 +36,8 @@ class DatabaseService {
                     ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
                     min: parseInt(process.env.DB_POOL_MIN) || 2,
                     max: parseInt(process.env.DB_POOL_MAX) || 10,
-                    idleTimeoutMillis: 30000,
-                    connectionTimeoutMillis: 2000,
+                    idleTimeoutMillis: parseInt(process.env.DB_IDLE_TIMEOUT) || 30000,
+                    connectionTimeoutMillis: parseInt(process.env.PG_CONNECTION_TIMEOUT) || 5000,
                 };
             } else {
                 // Check required environment variables
@@ -55,8 +57,8 @@ class DatabaseService {
                     ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
                     min: parseInt(process.env.DB_POOL_MIN) || 2,
                     max: parseInt(process.env.DB_POOL_MAX) || 10,
-                    idleTimeoutMillis: 30000,
-                    connectionTimeoutMillis: 2000,
+                    idleTimeoutMillis: parseInt(process.env.DB_IDLE_TIMEOUT) || 30000,
+                    connectionTimeoutMillis: parseInt(process.env.PG_CONNECTION_TIMEOUT) || 5000,
                 };
             }
 
@@ -68,12 +70,9 @@ class DatabaseService {
 
             this.pool = new Pool(config);
 
-            // Test connection
+            // Test connection with retry mechanism
             console.log('Attempting to connect to database...');
-            const client = await this.pool.connect();
-            const result = await client.query('SELECT NOW()');
-            console.log('Database connection test successful:', result.rows[0]);
-            client.release();
+            await this.testConnection();
 
             this.isConnected = true;
             ModuleErrorHandler.logger.info('Database connection pool initialized successfully');
@@ -87,11 +86,31 @@ class DatabaseService {
                 position: error.position
             });
             
+            if (this.retryAttempts < this.maxRetries) {
+                this.retryAttempts++;
+                ModuleErrorHandler.logger.info(`Retrying connection attempt ${this.retryAttempts} of ${this.maxRetries}`);
+                await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds before retry
+                return this.initialize();
+            }
+            
             if (process.env.NODE_ENV === 'production') {
                 ModuleErrorHandler.logger.warn('Continuing despite database initialization error in production');
             } else {
                 throw error;
             }
+        }
+    }
+
+    /**
+     * Test database connection
+     */
+    async testConnection() {
+        const client = await this.pool.connect();
+        try {
+            const result = await client.query('SELECT NOW()');
+            console.log('Database connection test successful:', result.rows[0]);
+        } finally {
+            client.release();
         }
     }
 

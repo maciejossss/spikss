@@ -21,15 +21,19 @@ class DatabaseService {
      */
     async initialize() {
         try {
+            console.log('Starting database initialization...');
+            
             console.log('Database connection environment variables:', {
                 DATABASE_URL: process.env.DATABASE_URL ? '[HIDDEN]' : undefined,
-                NODE_ENV: process.env.NODE_ENV
+                NODE_ENV: process.env.NODE_ENV,
+                SKIP_DB_INIT: process.env.SKIP_DB_INIT
             });
 
             const config = this.getConnectionConfig();
             console.log('Database configuration (without sensitive data):', {
                 ...config,
-                password: '[HIDDEN]'
+                password: '[HIDDEN]',
+                connectionString: config.connectionString ? config.connectionString.replace(/:[^:]+@/, ':****@') : undefined
             });
 
             this.pool = new Pool(config);
@@ -37,16 +41,29 @@ class DatabaseService {
             // Add error handler for the pool
             this.pool.on('error', (err) => {
                 console.error('Unexpected error on idle client', err);
-                if (this.isConnected) {
-                    this.isConnected = false;
-                    this.reconnect();
-                }
+                this.isConnected = false;
+                this.reconnect();
             });
 
+            // Test connection immediately
+            console.log('Testing initial connection...');
             await this.testConnection();
             
             this.isConnected = true;
+            console.log('Database connection successful!');
             ModuleErrorHandler.logger.info('Database connection pool initialized successfully');
+
+            // Setup periodic connection check
+            setInterval(async () => {
+                try {
+                    await this.testConnection();
+                } catch (error) {
+                    console.error('Periodic connection check failed:', error);
+                    this.isConnected = false;
+                    await this.reconnect();
+                }
+            }, 30000); // Check every 30 seconds
+
         } catch (error) {
             ModuleErrorHandler.logger.error('Failed to initialize database:', error);
             console.error('Detailed connection error:', {
@@ -66,6 +83,7 @@ class DatabaseService {
 
             if (process.env.NODE_ENV === 'production') {
                 ModuleErrorHandler.logger.warn('Continuing despite database initialization error in production');
+                throw error; // W produkcji lepiej rzucić błąd niż kontynuować bez bazy
             } else {
                 throw error;
             }
@@ -129,10 +147,15 @@ class DatabaseService {
      * Test database connection
      */
     async testConnection() {
-        console.log('Attempting to connect to database...');
+        console.log('Testing database connection...');
         const client = await this.pool.connect();
         try {
-            await client.query('SELECT NOW()');
+            const result = await client.query('SELECT NOW() as now, current_database() as database, version() as version');
+            console.log('Database connection test result:', {
+                timestamp: result.rows[0].now,
+                database: result.rows[0].database,
+                version: result.rows[0].version
+            });
         } finally {
             client.release();
         }

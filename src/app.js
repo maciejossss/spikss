@@ -224,13 +224,38 @@ class Application {
      * Initialize database connection
      */
     async initializeDatabase() {
-        if (process.env.SKIP_DB_INIT === 'true') {
-            ModuleErrorHandler.logger.info('Skipping database initialization (SKIP_DB_INIT=true)');
-            return;
+        try {
+            // Initialize database connection
+            await DatabaseService.initialize();
+            
+            // Check if tables exist
+            const client = await DatabaseService.pool.connect();
+            try {
+                const result = await client.query(`
+                    SELECT EXISTS (
+                        SELECT FROM information_schema.tables 
+                        WHERE table_schema = 'public'
+                        AND table_name = 'users'
+                    );
+                `);
+                
+                const tablesExist = result.rows[0].exists;
+                console.log('Database tables check:', { tablesExist });
+                
+                // If tables don't exist and SKIP_DB_INIT is not true, run initialization
+                if (!tablesExist && process.env.SKIP_DB_INIT !== 'true') {
+                    console.log('Tables do not exist. Running database initialization...');
+                    const initScript = require('./shared/database/init');
+                    await initScript.initializeDatabase();
+                    console.log('Database initialization completed.');
+                }
+            } finally {
+                client.release();
+            }
+        } catch (error) {
+            console.error('Database initialization error:', error);
+            throw error;
         }
-        
-        await DatabaseService.initialize();
-        ModuleErrorHandler.logger.info('Database connection established');
     }
 
     /**

@@ -226,6 +226,25 @@ class SystemController {
         }
     }
 
+    /**
+     * Get system monitoring data
+     * GET /api/system/monitoring
+     */
+    async getSystemMonitoring(req, res) {
+        try {
+            const monitoringData = await this.systemService.getMonitoringData();
+            
+            res.json({
+                success: true,
+                data: monitoringData
+            });
+            
+        } catch (error) {
+            const errorResponse = ModuleErrorHandler.handleError(error, 'system');
+            res.status(500).json(errorResponse);
+        }
+    }
+
     // Helper methods
 
     async getConnectionCount() {

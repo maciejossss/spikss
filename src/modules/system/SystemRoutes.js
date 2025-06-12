@@ -1,5 +1,6 @@
 const express = require('express');
 const SystemController = require('./SystemController');
+const AuthService = require('../../shared/auth/AuthService');
 
 const router = express.Router();
 const systemController = new SystemController();
@@ -18,5 +19,15 @@ router.post('/cleanup-connections', systemController.cleanupConnections.bind(sys
 
 // Get system logs
 router.get('/logs', systemController.getSystemLogs.bind(systemController));
+
+// Health check endpoint - public
+router.get('/health', systemController.healthCheck);
+
+// Database diagnostics - admin only
+router.get('/database/check', 
+    AuthService.authenticate(),
+    AuthService.moduleAccess('system', 'read'),
+    systemController.checkDatabase
+);
 
 module.exports = router; 

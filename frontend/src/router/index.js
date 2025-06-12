@@ -46,21 +46,27 @@ const routes = [
   // Moduł klientów
   {
     path: '/clients',
-    name: 'clients',
     component: ClientList,
-    meta: { requiresAuth: true }
+    name: 'client-list',
+    meta: { requiresAuth: true, module: 'clients' }
+  },
+  {
+    path: '/clients/new',
+    component: ClientEdit,
+    name: 'client-new',
+    meta: { requiresAuth: true, module: 'clients' }
   },
   {
     path: '/clients/:id',
-    name: 'client-details',
     component: ClientDetails,
-    meta: { requiresAuth: true }
+    name: 'client-details',
+    meta: { requiresAuth: true, module: 'clients' }
   },
   {
     path: '/clients/:id/edit',
-    name: 'client-edit',
     component: ClientEdit,
-    meta: { requiresAuth: true }
+    name: 'client-edit',
+    meta: { requiresAuth: true, module: 'clients' }
   },
   // Moduł urządzeń
   {

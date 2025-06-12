@@ -1,15 +1,21 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { ClientAPI } from '../services/clientApi'
+import api from '@/services/api'
 
 export const useClientStore = defineStore('clients', () => {
-  // Stan
+  // State
   const clients = ref([])
   const isLoading = ref(false)
   const error = ref(null)
   const selectedClient = ref(null)
+  const pagination = ref({
+    page: 1,
+    limit: 20,
+    total: 0,
+    totalPages: 0
+  })
 
-  // Gettery
+  // Getters
   const activeClients = computed(() => 
     clients.value.filter(client => client.is_active)
   )
@@ -22,16 +28,26 @@ export const useClientStore = defineStore('clients', () => {
     clients.value.find(client => client.id === id)
   )
 
-  // Akcje
-  async function fetchClients() {
+  // Actions
+  async function fetchClients(params = new URLSearchParams()) {
     try {
       isLoading.value = true
       error.value = null
-      const response = await ClientAPI.getAll()
-      clients.value = response.data
+      
+      const response = await api.get(`/clients?${params.toString()}`)
+      
+      if (response.data.success) {
+        clients.value = response.data.data
+        if (response.data.pagination) {
+          pagination.value = response.data.pagination
+        }
+      } else {
+        throw new Error(response.data.message || 'Błąd podczas pobierania klientów')
+      }
     } catch (err) {
       error.value = err.message || 'Błąd podczas pobierania klientów'
       console.error('Error fetching clients:', err)
+      throw err
     } finally {
       isLoading.value = false
     }
@@ -41,9 +57,15 @@ export const useClientStore = defineStore('clients', () => {
     try {
       isLoading.value = true
       error.value = null
-      const response = await ClientAPI.create(clientData)
-      clients.value.push(response.data)
-      return response.data
+      
+      const response = await api.post('/clients', clientData)
+      
+      if (response.data.success) {
+        clients.value.unshift(response.data.data)
+        return response.data.data
+      } else {
+        throw new Error(response.data.message || 'Błąd podczas tworzenia klienta')
+      }
     } catch (err) {
       error.value = err.message || 'Błąd podczas tworzenia klienta'
       console.error('Error creating client:', err)
@@ -57,12 +79,18 @@ export const useClientStore = defineStore('clients', () => {
     try {
       isLoading.value = true
       error.value = null
-      const response = await ClientAPI.update(id, clientData)
-      const index = clients.value.findIndex(c => c.id === id)
-      if (index !== -1) {
-        clients.value[index] = response.data
+      
+      const response = await api.put(`/clients/${id}`, clientData)
+      
+      if (response.data.success) {
+        const index = clients.value.findIndex(c => c.id === id)
+        if (index !== -1) {
+          clients.value[index] = response.data.data
+        }
+        return response.data.data
+      } else {
+        throw new Error(response.data.message || 'Błąd podczas aktualizacji klienta')
       }
-      return response.data
     } catch (err) {
       error.value = err.message || 'Błąd podczas aktualizacji klienta'
       console.error('Error updating client:', err)
@@ -76,8 +104,15 @@ export const useClientStore = defineStore('clients', () => {
     try {
       isLoading.value = true
       error.value = null
-      await ClientAPI.delete(id)
-      clients.value = clients.value.filter(c => c.id !== id)
+      
+      const response = await api.delete(`/clients/${id}`)
+      
+      if (response.data.success) {
+        clients.value = clients.value.filter(c => c.id !== id)
+        return true
+      } else {
+        throw new Error(response.data.message || 'Błąd podczas usuwania klienta')
+      }
     } catch (err) {
       error.value = err.message || 'Błąd podczas usuwania klienta'
       console.error('Error deleting client:', err)
@@ -87,13 +122,19 @@ export const useClientStore = defineStore('clients', () => {
     }
   }
 
-  async function fetchClientDetails(id) {
+  async function getClientDetails(id) {
     try {
       isLoading.value = true
       error.value = null
-      const response = await ClientAPI.getById(id)
-      selectedClient.value = response.data
-      return response.data
+      
+      const response = await api.get(`/clients/${id}`)
+      
+      if (response.data.success) {
+        selectedClient.value = response.data.data
+        return response.data.data
+      } else {
+        throw new Error(response.data.message || 'Błąd podczas pobierania szczegółów klienta')
+      }
     } catch (err) {
       error.value = err.message || 'Błąd podczas pobierania szczegółów klienta'
       console.error('Error fetching client details:', err)
@@ -103,32 +144,38 @@ export const useClientStore = defineStore('clients', () => {
     }
   }
 
-  // Reset stanu
-  function resetState() {
+  function resetStore() {
     clients.value = []
     selectedClient.value = null
-    error.value = null
     isLoading.value = false
+    error.value = null
+    pagination.value = {
+      page: 1,
+      limit: 20,
+      total: 0,
+      totalPages: 0
+    }
   }
 
   return {
-    // Stan
+    // State
     clients,
     isLoading,
     error,
     selectedClient,
+    pagination,
     
-    // Gettery
+    // Getters
     activeClients,
     inactiveClients,
     getClientById,
     
-    // Akcje
+    // Actions
     fetchClients,
     createClient,
     updateClient,
     deleteClient,
-    fetchClientDetails,
-    resetState
+    getClientDetails,
+    resetStore
   }
 }) 

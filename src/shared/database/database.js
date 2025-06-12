@@ -77,7 +77,7 @@ class DatabaseService {
      */
     getConnectionConfig() {
         if (process.env.DATABASE_URL) {
-            return {
+            const config = {
                 connectionString: process.env.DATABASE_URL,
                 ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
                 min: parseInt(process.env.DB_POOL_MIN) || 2,
@@ -85,6 +85,14 @@ class DatabaseService {
                 idleTimeoutMillis: 30000,
                 connectionTimeoutMillis: 5000,
             };
+            
+            // Log the configuration without sensitive data
+            console.log('Using DATABASE_URL configuration:', {
+                ...config,
+                connectionString: config.connectionString.replace(/:[^:]+@/, ':****@')
+            });
+            
+            return config;
         }
 
         // Fallback to individual connection parameters
@@ -95,7 +103,7 @@ class DatabaseService {
             throw new Error(`Missing required environment variables: ${missingEnvVars.join(', ')}`);
         }
 
-        return {
+        const config = {
             host: process.env.PGHOST,
             port: parseInt(process.env.PGPORT) || 5432,
             database: process.env.PGDATABASE,
@@ -107,6 +115,14 @@ class DatabaseService {
             idleTimeoutMillis: 30000,
             connectionTimeoutMillis: 5000,
         };
+
+        // Log the configuration without sensitive data
+        console.log('Using individual parameters configuration:', {
+            ...config,
+            password: '[HIDDEN]'
+        });
+
+        return config;
     }
 
     /**

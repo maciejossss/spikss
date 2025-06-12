@@ -159,6 +159,9 @@ class ModuleErrorHandler {
      * @returns {string} Sanitized message
      */
     static sanitizeErrorMessage(message) {
+        // Handle undefined or null messages
+        if (!message) return 'An error occurred';
+        
         // Remove sensitive information from error messages
         const sensitivePatterns = [
             /password/gi,

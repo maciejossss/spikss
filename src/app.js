@@ -115,6 +115,9 @@ class Application {
      * Setup security middleware
      */
     setupSecurity() {
+        // Enable trust proxy
+        this.app.set('trust proxy', 1);
+        
         // Helmet for security headers
         this.app.use(helmet({
             contentSecurityPolicy: this.isProduction ? undefined : false

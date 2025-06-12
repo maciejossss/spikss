@@ -4,77 +4,80 @@
  */
 
 const jwt = require('jsonwebtoken');
-const AuthService = require('../auth/AuthService');
+const AuthService = require('../../modules/auth/services/AuthService');
 const ModuleErrorHandler = require('../error/ModuleErrorHandler');
 
 /**
  * Authentication middleware
- * Verifies JWT token and attaches user data to request
  */
-function authMiddleware(req, res, next) {
+const authMiddleware = async (req, res, next) => {
     try {
+        // Get token from header
         const authHeader = req.headers.authorization;
-        
-        if (!authHeader) {
-            return res.status(401).json({
-                success: false,
-                message: 'Access token is required'
-            });
-        }
-
-        if (!authHeader.startsWith('Bearer ')) {
-            return res.status(401).json({
-                success: false,
-                message: 'Invalid token format. Use: Bearer <token>'
-            });
-        }
-
-        const token = authHeader.substring(7); // Remove 'Bearer ' prefix
-
-        if (!token) {
-            return res.status(401).json({
-                success: false,
-                message: 'Access token is required'
-            });
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            throw new Error('No token provided');
         }
 
         // Verify token
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production');
+        const token = authHeader.split(' ')[1];
+        const decoded = AuthService.verifyToken(token);
 
-        // Attach user data to request
-        req.user = {
-            id: decoded.id,
-            username: decoded.username,
-            role: decoded.role,
-            permissions: decoded.permissions || {}
-        };
-
-        ModuleErrorHandler.logger.debug(`User authenticated: ${req.user.username} (${req.user.role})`);
-
+        // Add user to request
+        req.user = decoded;
         next();
-
     } catch (error) {
-        if (error.name === 'JsonWebTokenError') {
-            return res.status(401).json({
-                success: false,
-                message: 'Invalid access token'
-            });
-        }
-
-        if (error.name === 'TokenExpiredError') {
-            return res.status(401).json({
-                success: false,
-                message: 'Access token has expired'
-            });
-        }
-
-        ModuleErrorHandler.logger.error('Auth middleware error:', error);
-        
-        return res.status(500).json({
-            success: false,
-            message: 'Authentication error'
-        });
+        const errorResponse = ModuleErrorHandler.handleError(error, 'AUTH_MIDDLEWARE');
+        res.status(401).json(errorResponse);
     }
-}
+};
 
-module.exports = authMiddleware; 
+/**
+ * Role-based authorization middleware
+ */
+const requireRole = (roles) => {
+    return (req, res, next) => {
+        try {
+            if (!req.user) {
+                throw new Error('User not authenticated');
+            }
+
+            if (!roles.includes(req.user.role)) {
+                throw new Error('Insufficient permissions');
+            }
+
+            next();
+        } catch (error) {
+            const errorResponse = ModuleErrorHandler.handleError(error, 'AUTH_ROLE_CHECK');
+            res.status(403).json(errorResponse);
+        }
+    };
+};
+
+/**
+ * Permission-based authorization middleware
+ */
+const requirePermission = (resource, action) => {
+    return (req, res, next) => {
+        try {
+            if (!req.user) {
+                throw new Error('User not authenticated');
+            }
+
+            const userPermissions = req.user.permissions[resource] || [];
+            if (!userPermissions.includes(action)) {
+                throw new Error(`Insufficient permissions for ${resource}:${action}`);
+            }
+
+            next();
+        } catch (error) {
+            const errorResponse = ModuleErrorHandler.handleError(error, 'AUTH_PERMISSION_CHECK');
+            res.status(403).json(errorResponse);
+        }
+    };
+};
+
+module.exports = {
+    authMiddleware,
+    requireRole,
+    requirePermission
+}; 

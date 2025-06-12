@@ -234,15 +234,16 @@ class Application {
      * Setup application routes
      */
     setupRoutes() {
-        const apiPrefix = process.env.API_PREFIX || '/api/v1';
+        const apiPrefix = '/api/v1';
+
+        // Auth routes
+        const authRoutes = require('./modules/auth/routes/authRoutes');
+        this.app.use(`${apiPrefix}/auth`, authRoutes);
 
         // Health check endpoint (no auth required)
         this.app.get('/health', this.healthCheckHandler.bind(this));
         this.app.get('/zdrowie', this.healthCheckHandler.bind(this));
         
-        // Authentication endpoints (no auth required for login)
-        this.setupAuthRoutes(apiPrefix);
-
         // Module routes (auth required)
         this.setupModuleRoutes(apiPrefix);
 
@@ -269,180 +270,6 @@ class Application {
                 });
             }
         });
-    }
-
-    /**
-     * Setup authentication routes
-     */
-    setupAuthRoutes(apiPrefix) {
-        const authRouter = express.Router();
-
-        // Development auto-login endpoint (only in development)
-        if (process.env.NODE_ENV !== 'production') {
-            authRouter.post('/dev-login', async (req, res) => {
-                try {
-                    // Mock user data for development
-                    const mockUser = {
-                        id: 1,
-                        username: 'dev_user',
-                        first_name: 'Development',
-                        last_name: 'User',
-                        email: 'dev@example.com',
-                        role: 'admin',
-                        permissions: {
-                            'service-records': ['read', 'write', 'delete'],
-                            'scheduling': ['read', 'write', 'delete'],
-                            'clients': ['read', 'write'],
-                            'devices': ['read', 'write'],
-                            'system': ['read', 'write', 'delete']
-                        },
-                        created_at: new Date().toISOString(),
-                        is_active: true
-                    };
-
-                    // Generate tokens
-                    const tokenPayload = {
-                        id: mockUser.id,
-                        username: mockUser.username,
-                        role: mockUser.role,
-                        permissions: mockUser.permissions
-                    };
-
-                    const token = AuthService.generateToken(tokenPayload);
-                    const refreshToken = AuthService.generateRefreshToken({ id: mockUser.id });
-
-                    res.json({
-                        success: true,
-                        data: {
-                            user: mockUser,
-                            token,
-                            refreshToken
-                        },
-                        message: 'Development auto-login successful'
-                    });
-
-                } catch (error) {
-                    const errorResponse = ModuleErrorHandler.handleError(error, 'AUTH_DEV_LOGIN');
-                    res.status(500).json(errorResponse);
-                }
-            });
-        }
-
-        // Login endpoint
-        authRouter.post('/login', async (req, res) => {
-            try {
-                const { username, password } = req.body;
-
-                if (!username || !password) {
-                    return res.status(400).json({
-                        success: false,
-                        message: 'Username and password are required'
-                    });
-                }
-
-                // Query user from database
-                const userResult = await DatabaseService.query(
-                    'SELECT * FROM users WHERE username = $1 AND is_active = true',
-                    [username]
-                );
-
-                if (userResult.rows.length === 0) {
-                    return res.status(401).json({
-                        success: false,
-                        message: 'Invalid credentials'
-                    });
-                }
-
-                const user = userResult.rows[0];
-
-                // Verify password
-                const isValidPassword = await AuthService.comparePassword(password, user.password_hash);
-
-                if (!isValidPassword) {
-                    return res.status(401).json({
-                        success: false,
-                        message: 'Invalid credentials'
-                    });
-                }
-
-                // Generate tokens
-                const tokenPayload = {
-                    id: user.id,
-                    username: user.username,
-                    role: user.role,
-                    permissions: user.permissions
-                };
-
-                const token = AuthService.generateToken(tokenPayload);
-                const refreshToken = AuthService.generateRefreshToken({ id: user.id });
-
-                // Remove sensitive data
-                delete user.password_hash;
-
-                res.json({
-                    success: true,
-                    data: {
-                        user,
-                        token,
-                        refreshToken
-                    }
-                });
-
-            } catch (error) {
-                const errorResponse = ModuleErrorHandler.handleError(error, 'AUTH_LOGIN');
-                res.status(500).json(errorResponse);
-            }
-        });
-
-        // Token refresh endpoint
-        authRouter.post('/refresh', async (req, res) => {
-            try {
-                const { refreshToken } = req.body;
-
-                if (!refreshToken) {
-                    return res.status(400).json({
-                        success: false,
-                        message: 'Refresh token is required'
-                    });
-                }
-
-                const decoded = AuthService.verifyToken(refreshToken);
-                
-                // Get current user data
-                const userResult = await DatabaseService.query(
-                    'SELECT * FROM users WHERE id = $1 AND is_active = true',
-                    [decoded.id]
-                );
-
-                if (userResult.rows.length === 0) {
-                    return res.status(401).json({
-                        success: false,
-                        message: 'User not found'
-                    });
-                }
-
-                const user = userResult.rows[0];
-                const tokenPayload = {
-                    id: user.id,
-                    username: user.username,
-                    role: user.role,
-                    permissions: user.permissions
-                };
-
-                const newToken = AuthService.generateToken(tokenPayload);
-
-                res.json({
-                    success: true,
-                    data: { token: newToken }
-                });
-
-            } catch (error) {
-                const errorResponse = ModuleErrorHandler.handleError(error, 'AUTH_REFRESH');
-                res.status(401).json(errorResponse);
-            }
-        });
-
-        this.app.use(`${apiPrefix}/auth`, authRouter);
     }
 
     /**

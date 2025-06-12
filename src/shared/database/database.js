@@ -11,8 +11,9 @@ class DatabaseService {
     constructor() {
         this.pool = null;
         this.isConnected = false;
-        this.retryAttempts = 0;
+        this.connectionRetries = 0;
         this.maxRetries = 3;
+        this.retryDelay = 5000; // 5 seconds
     }
 
     /**
@@ -20,60 +21,30 @@ class DatabaseService {
      */
     async initialize() {
         try {
-            // Log all environment variables related to database connection
-            console.log('Database connection environment variables:');
-            console.log({
+            console.log('Database connection environment variables:', {
                 DATABASE_URL: process.env.DATABASE_URL ? '[HIDDEN]' : undefined,
-                NODE_ENV: process.env.NODE_ENV,
+                NODE_ENV: process.env.NODE_ENV
             });
 
-            let config;
-            
-            if (process.env.DATABASE_URL) {
-                // Use connection string if available
-                config = {
-                    connectionString: process.env.DATABASE_URL,
-                    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-                    min: parseInt(process.env.DB_POOL_MIN) || 2,
-                    max: parseInt(process.env.DB_POOL_MAX) || 10,
-                    idleTimeoutMillis: parseInt(process.env.DB_IDLE_TIMEOUT) || 30000,
-                    connectionTimeoutMillis: parseInt(process.env.PG_CONNECTION_TIMEOUT) || 5000,
-                };
-            } else {
-                // Check required environment variables
-                const requiredEnvVars = ['PGHOST', 'PGDATABASE', 'PGUSER', 'PGPASSWORD'];
-                const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
-                
-                if (missingEnvVars.length > 0) {
-                    throw new Error(`Missing required environment variables: ${missingEnvVars.join(', ')}`);
-                }
-
-                config = {
-                    host: process.env.PGHOST,
-                    port: parseInt(process.env.PGPORT) || 5432,
-                    database: process.env.PGDATABASE,
-                    user: process.env.PGUSER,
-                    password: process.env.PGPASSWORD,
-                    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-                    min: parseInt(process.env.DB_POOL_MIN) || 2,
-                    max: parseInt(process.env.DB_POOL_MAX) || 10,
-                    idleTimeoutMillis: parseInt(process.env.DB_IDLE_TIMEOUT) || 30000,
-                    connectionTimeoutMillis: parseInt(process.env.PG_CONNECTION_TIMEOUT) || 5000,
-                };
-            }
-
+            const config = this.getConnectionConfig();
             console.log('Database configuration (without sensitive data):', {
                 ...config,
-                connectionString: config.connectionString ? '[HIDDEN]' : undefined,
                 password: '[HIDDEN]'
             });
 
             this.pool = new Pool(config);
 
-            // Test connection with retry mechanism
-            console.log('Attempting to connect to database...');
-            await this.testConnection();
+            // Add error handler for the pool
+            this.pool.on('error', (err) => {
+                console.error('Unexpected error on idle client', err);
+                if (this.isConnected) {
+                    this.isConnected = false;
+                    this.reconnect();
+                }
+            });
 
+            await this.testConnection();
+            
             this.isConnected = true;
             ModuleErrorHandler.logger.info('Database connection pool initialized successfully');
         } catch (error) {
@@ -85,14 +56,14 @@ class DatabaseService {
                 hint: error.hint,
                 position: error.position
             });
-            
-            if (this.retryAttempts < this.maxRetries) {
-                this.retryAttempts++;
-                ModuleErrorHandler.logger.info(`Retrying connection attempt ${this.retryAttempts} of ${this.maxRetries}`);
-                await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds before retry
+
+            if (this.connectionRetries < this.maxRetries) {
+                ModuleErrorHandler.logger.info(`Retrying connection attempt ${this.connectionRetries + 1} of ${this.maxRetries}`);
+                await new Promise(resolve => setTimeout(resolve, this.retryDelay));
+                this.connectionRetries++;
                 return this.initialize();
             }
-            
+
             if (process.env.NODE_ENV === 'production') {
                 ModuleErrorHandler.logger.warn('Continuing despite database initialization error in production');
             } else {
@@ -102,23 +73,70 @@ class DatabaseService {
     }
 
     /**
+     * Get database connection configuration
+     */
+    getConnectionConfig() {
+        if (process.env.DATABASE_URL) {
+            return {
+                connectionString: process.env.DATABASE_URL,
+                ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+                min: parseInt(process.env.DB_POOL_MIN) || 2,
+                max: parseInt(process.env.DB_POOL_MAX) || 10,
+                idleTimeoutMillis: 30000,
+                connectionTimeoutMillis: 5000,
+            };
+        }
+
+        // Fallback to individual connection parameters
+        const requiredEnvVars = ['PGHOST', 'PGDATABASE', 'PGUSER', 'PGPASSWORD'];
+        const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
+        
+        if (missingEnvVars.length > 0) {
+            throw new Error(`Missing required environment variables: ${missingEnvVars.join(', ')}`);
+        }
+
+        return {
+            host: process.env.PGHOST,
+            port: parseInt(process.env.PGPORT) || 5432,
+            database: process.env.PGDATABASE,
+            user: process.env.PGUSER,
+            password: process.env.PGPASSWORD,
+            ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+            min: parseInt(process.env.DB_POOL_MIN) || 2,
+            max: parseInt(process.env.DB_POOL_MAX) || 10,
+            idleTimeoutMillis: 30000,
+            connectionTimeoutMillis: 5000,
+        };
+    }
+
+    /**
      * Test database connection
      */
     async testConnection() {
+        console.log('Attempting to connect to database...');
         const client = await this.pool.connect();
         try {
-            const result = await client.query('SELECT NOW()');
-            console.log('Database connection test successful:', result.rows[0]);
+            await client.query('SELECT NOW()');
         } finally {
             client.release();
         }
     }
 
     /**
+     * Attempt to reconnect to database
+     */
+    async reconnect() {
+        ModuleErrorHandler.logger.info('Attempting to reconnect to database...');
+        try {
+            await this.close();
+            await this.initialize();
+        } catch (error) {
+            ModuleErrorHandler.logger.error('Failed to reconnect:', error);
+        }
+    }
+
+    /**
      * Execute query with error handling
-     * @param {string} query - SQL query
-     * @param {Array} params - Query parameters
-     * @returns {Promise<Object>} Query result
      */
     async query(query, params = []) {
         if (!this.isConnected) {
@@ -145,8 +163,6 @@ class DatabaseService {
 
     /**
      * Execute transaction
-     * @param {Function} callback - Function to execute within transaction
-     * @returns {Promise<any>} Transaction result
      */
     async transaction(callback) {
         if (!this.isConnected) {
@@ -169,7 +185,6 @@ class DatabaseService {
 
     /**
      * Health check for database
-     * @returns {Promise<Object>} Health status
      */
     async healthCheck() {
         try {
@@ -177,11 +192,7 @@ class DatabaseService {
             return {
                 status: 'healthy',
                 connected: this.isConnected,
-                poolInfo: {
-                    totalCount: this.pool.totalCount,
-                    idleCount: this.pool.idleCount,
-                    waitingCount: this.pool.waitingCount
-                },
+                poolInfo: this.getPoolStats(),
                 serverInfo: {
                     currentTime: result.rows[0].current_time,
                     version: result.rows[0].version.split(' ')[0]
@@ -209,7 +220,6 @@ class DatabaseService {
 
     /**
      * Get connection pool stats
-     * @returns {Object} Pool statistics
      */
     getPoolStats() {
         if (!this.pool) return null;

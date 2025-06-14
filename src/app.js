@@ -27,65 +27,17 @@ const AuthService = require('./shared/auth/AuthService');
 class Application {
     constructor() {
         this.app = express();
-        this.port = process.env.PORT || 8080;
+        this.port = process.env.PORT || 3000;
         this.isProduction = process.env.NODE_ENV === 'production';
         this.modules = new Map();
         this.healthCheckInterval = null;
         this.logger = ModuleErrorHandler.logger;
-
-        // Dodaj podstawowe endpointy przed inicjalizacją
-        this.setupBasicEndpoints();
-    }
-
-    setupBasicEndpoints() {
-        // Serwowanie plików statycznych frontendu
-        this.app.use(express.static(path.join(__dirname, '../frontend/dist')));
-
-        // API endpoints
-        this.app.get('/api', (req, res) => {
-            res.json({ status: 'ok', message: 'System Serwisowy API is running' });
-        });
-
-        // Health check endpoint
-        this.app.get('/health', async (req, res) => {
-            try {
-                console.log('Health check requested');
-                const status = {
-                    status: 'ok',
-                    timestamp: new Date().toISOString(),
-                    uptime: process.uptime(),
-                    memory: process.memoryUsage(),
-                    database: {
-                        connected: DatabaseService.isConnected
-                    }
-                };
-                
-                console.log('Health check response:', status);
-                res.json(status);
-            } catch (error) {
-                console.error('Health check failed:', error);
-                res.status(500).json({
-                    status: 'error',
-                    message: error.message
-                });
-            }
-        });
-
-        // Wszystkie pozostałe ścieżki kieruj do frontendu (SPA routing)
-        this.app.get('*', (req, res) => {
-            // Nie przekierowuj requestów API
-            if (!req.url.startsWith('/api')) {
-                res.sendFile(path.join(__dirname, '../frontend/dist/index.html'));
-            }
-        });
     }
 
     /**
      * Initialize the application
      */
     async initialize() {
-        console.log('Starting application initialization...');
-        
         try {
             // Setup security and middleware
             this.setupSecurity();
@@ -115,9 +67,6 @@ class Application {
      * Setup security middleware
      */
     setupSecurity() {
-        // Enable trust proxy
-        this.app.set('trust proxy', 1);
-        
         // Helmet for security headers
         this.app.use(helmet({
             contentSecurityPolicy: this.isProduction ? undefined : false
@@ -125,9 +74,11 @@ class Application {
 
         // CORS configuration
         this.app.use(cors({
-            origin: this.isProduction 
-                ? process.env.ALLOWED_ORIGINS?.split(',') || ['https://*.railway.app']
-                : ['http://localhost:8082', 'http://localhost:8083', 'http://localhost:8080'],
+            origin: [
+                'http://localhost:8082',
+                'http://localhost:8083', 
+                'http://localhost:8080'  // backup
+            ],
             credentials: true,
             methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
             allowedHeaders: ['Content-Type', 'Authorization']
@@ -224,80 +175,207 @@ class Application {
      * Initialize database connection
      */
     async initializeDatabase() {
-        try {
-            // Initialize database connection
-            await DatabaseService.initialize();
-            
-            // Check if tables exist
-            const client = await DatabaseService.pool.connect();
-            try {
-                const result = await client.query(`
-                    SELECT EXISTS (
-                        SELECT FROM information_schema.tables 
-                        WHERE table_schema = 'public'
-                        AND table_name = 'users'
-                    );
-                `);
-                
-                const tablesExist = result.rows[0].exists;
-                console.log('Database tables check:', { tablesExist });
-                
-                // If tables don't exist and SKIP_DB_INIT is not true, run initialization
-                if (!tablesExist && process.env.SKIP_DB_INIT !== 'true') {
-                    console.log('Tables do not exist. Running database initialization...');
-                    const initScript = require('./shared/database/init');
-                    await initScript.initializeDatabase();
-                    console.log('Database initialization completed.');
-                }
-            } finally {
-                client.release();
-            }
-        } catch (error) {
-            console.error('Database initialization error:', error);
-            throw error;
-        }
+        await DatabaseService.initialize();
+        ModuleErrorHandler.logger.info('Database connection established');
     }
 
     /**
      * Setup application routes
      */
     setupRoutes() {
-        const apiPrefix = '/api/v1';
-
-        // Auth routes
-        const authRoutes = require('./modules/auth/routes/authRoutes');
-        this.app.use(`${apiPrefix}/auth`, authRoutes);
+        const apiPrefix = process.env.API_PREFIX || '/api/v1';
 
         // Health check endpoint (no auth required)
         this.app.get('/health', this.healthCheckHandler.bind(this));
-        this.app.get('/zdrowie', this.healthCheckHandler.bind(this));
         
+        // Authentication endpoints (no auth required for login)
+        this.setupAuthRoutes(apiPrefix);
+
         // Module routes (auth required)
         this.setupModuleRoutes(apiPrefix);
 
-        // Add health check endpoint for Railway
-        this.app.get('/', (req, res) => {
-            res.json({ status: 'ok', message: 'System Serwisowy API is running' });
+        // 404 handler
+        this.app.use('*', (req, res) => {
+            res.status(404).json({
+                success: false,
+                message: 'Endpoint not found',
+                path: req.originalUrl
+            });
         });
-        
-        // Add Railway health check endpoint
-        this.app.get('/health', async (req, res) => {
+    }
+
+    /**
+     * Setup authentication routes
+     */
+    setupAuthRoutes(apiPrefix) {
+        const authRouter = express.Router();
+
+        // Development auto-login endpoint (only in development)
+        if (process.env.NODE_ENV !== 'production') {
+            authRouter.post('/dev-login', async (req, res) => {
+                try {
+                    // Mock user data for development
+                    const mockUser = {
+                        id: 1,
+                        username: 'dev_user',
+                        first_name: 'Development',
+                        last_name: 'User',
+                        email: 'dev@example.com',
+                        role: 'admin',
+                        permissions: {
+                            'service-records': ['read', 'write', 'delete'],
+                            'scheduling': ['read', 'write', 'delete'],
+                            'clients': ['read', 'write'],
+                            'devices': ['read', 'write'],
+                            'system': ['read', 'write', 'delete']
+                        },
+                        created_at: new Date().toISOString(),
+                        is_active: true
+                    };
+
+                    // Generate tokens
+                    const tokenPayload = {
+                        id: mockUser.id,
+                        username: mockUser.username,
+                        role: mockUser.role,
+                        permissions: mockUser.permissions
+                    };
+
+                    const token = AuthService.generateToken(tokenPayload);
+                    const refreshToken = AuthService.generateRefreshToken({ id: mockUser.id });
+
+                    res.json({
+                        success: true,
+                        data: {
+                            user: mockUser,
+                            token,
+                            refreshToken
+                        },
+                        message: 'Development auto-login successful'
+                    });
+
+                } catch (error) {
+                    const errorResponse = ModuleErrorHandler.handleError(error, 'AUTH_DEV_LOGIN');
+                    res.status(500).json(errorResponse);
+                }
+            });
+        }
+
+        // Login endpoint
+        authRouter.post('/login', async (req, res) => {
             try {
-                const dbHealth = await DatabaseService.healthCheck();
+                const { username, password } = req.body;
+
+                if (!username || !password) {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'Username and password are required'
+                    });
+                }
+
+                // Query user from database
+                const userResult = await DatabaseService.query(
+                    'SELECT * FROM users WHERE username = $1 AND is_active = true',
+                    [username]
+                );
+
+                if (userResult.rows.length === 0) {
+                    return res.status(401).json({
+                        success: false,
+                        message: 'Invalid credentials'
+                    });
+                }
+
+                const user = userResult.rows[0];
+
+                // Verify password
+                const isValidPassword = await AuthService.comparePassword(password, user.password_hash);
+
+                if (!isValidPassword) {
+                    return res.status(401).json({
+                        success: false,
+                        message: 'Invalid credentials'
+                    });
+                }
+
+                // Generate tokens
+                const tokenPayload = {
+                    id: user.id,
+                    username: user.username,
+                    role: user.role,
+                    permissions: user.permissions
+                };
+
+                const token = AuthService.generateToken(tokenPayload);
+                const refreshToken = AuthService.generateRefreshToken({ id: user.id });
+
+                // Remove sensitive data
+                delete user.password_hash;
+
                 res.json({
-                    status: 'ok',
-                    database: dbHealth,
-                    uptime: process.uptime(),
-                    memory: process.memoryUsage()
+                    success: true,
+                    data: {
+                        user,
+                        token,
+                        refreshToken
+                    }
                 });
+
             } catch (error) {
-                res.status(500).json({
-                    status: 'error',
-                    message: 'Health check failed',
-                    error: error.message
-                });
+                const errorResponse = ModuleErrorHandler.handleError(error, 'AUTH_LOGIN');
+                res.status(500).json(errorResponse);
             }
         });
+
+        // Token refresh endpoint
+        authRouter.post('/refresh', async (req, res) => {
+            try {
+                const { refreshToken } = req.body;
+
+                if (!refreshToken) {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'Refresh token is required'
+                    });
+                }
+
+                const decoded = AuthService.verifyToken(refreshToken);
+                
+                // Get current user data
+                const userResult = await DatabaseService.query(
+                    'SELECT * FROM users WHERE id = $1 AND is_active = true',
+                    [decoded.id]
+                );
+
+                if (userResult.rows.length === 0) {
+                    return res.status(401).json({
+                        success: false,
+                        message: 'User not found'
+                    });
+                }
+
+                const user = userResult.rows[0];
+                const tokenPayload = {
+                    id: user.id,
+                    username: user.username,
+                    role: user.role,
+                    permissions: user.permissions
+                };
+
+                const newToken = AuthService.generateToken(tokenPayload);
+
+                res.json({
+                    success: true,
+                    data: { token: newToken }
+                });
+
+            } catch (error) {
+                const errorResponse = ModuleErrorHandler.handleError(error, 'AUTH_REFRESH');
+                res.status(401).json(errorResponse);
+            }
+        });
+
+        this.app.use(`${apiPrefix}/auth`, authRouter);
     }
 
     /**
@@ -517,22 +595,18 @@ class Application {
             await this.initialize();
             
             this.server = this.app.listen(this.port, () => {
-                const baseUrl = process.env.NODE_ENV === 'production' 
-                    ? process.env.APP_URL || `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` 
-                    : `http://localhost:${this.port}`;
-                
                 ModuleErrorHandler.logger.info(`🚀 System Serwisowy started on port ${this.port}`);
-                ModuleErrorHandler.logger.info(`📊 Health check: ${baseUrl}/zdrowie`);
-                ModuleErrorHandler.logger.info(`🔑 API Base: ${baseUrl}${process.env.API_PREFIX || '/api/v1'}`);
+                ModuleErrorHandler.logger.info(`📊 Health check: http://localhost:${this.port}/health`);
+                ModuleErrorHandler.logger.info(`🔑 API Base: http://localhost:${this.port}${process.env.API_PREFIX || '/api/v1'}`);
             });
 
-            // Set server timeouts
-            this.server.keepAliveTimeout = 65000;
-            this.server.headersTimeout = 66000;
-            this.server.timeout = 120000;
+            // Set server timeouts to prevent hanging connections
+            this.server.keepAliveTimeout = 30000; // 30 seconds (zmniejszone z 65s)
+            this.server.headersTimeout = 35000; // 35 seconds (zmniejszone z 66s)
+            this.server.timeout = 60000; // 1 minute (zmniejszone z 2 minut)
             
-            // Set maximum connections
-            this.server.maxConnections = 50;
+            // Set maximum connections - bardziej restrykcyjnie
+            this.server.maxConnections = 25; // Zmniejszone z 50
             
             // Monitor connection count and auto-cleanup
             this.connectionMonitor = setInterval(() => {
@@ -540,13 +614,19 @@ class Application {
                     const connections = this.server.connections || 0;
                     ModuleErrorHandler.logger.info(`Active connections: ${connections}`);
                     
-                    if (connections > 40) {
+                    if (connections > 20) {
                         ModuleErrorHandler.logger.warn(`High connection count: ${connections} - triggering cleanup`);
                         // Force close idle connections
                         this.server.closeIdleConnections?.();
                     }
+                    
+                    if (connections > 30) {
+                        ModuleErrorHandler.logger.error(`Critical connection count: ${connections} - forcing aggressive cleanup`);
+                        // More aggressive cleanup if available
+                        this.server.closeAllConnections?.();
+                    }
                 }
-            }, 15000);
+            }, 15000); // Check every 15 seconds
 
             // Add connection event listeners
             this.server.on('connection', (socket) => {

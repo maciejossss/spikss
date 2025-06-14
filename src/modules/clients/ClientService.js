@@ -180,22 +180,19 @@ class ClientService {
     
     /**
      * Get client statistics
-     * @returns {Object} Client statistics
+     * @returns {Object} Statistics object
      */
-    async getClientStatistics() {
+    async getClientStats() {
         try {
-            const stats = await this.db.getClientStatistics();
+            const stats = await this.db.getStats();
             
-            return {
-                total_clients: parseInt(stats.total_clients) || 0,
-                active_clients: parseInt(stats.active_clients) || 0,
-                inactive_clients: parseInt(stats.inactive_clients) || 0,
-                new_clients_this_month: parseInt(stats.new_clients_this_month) || 0
-            };
+            ModuleErrorHandler.logger.info('Retrieved client statistics');
+            
+            return stats;
             
         } catch (error) {
-            ModuleErrorHandler.handleError(error, 'clients', { operation: 'getClientStatistics' });
-            throw error;
+            ModuleErrorHandler.logger.error('Service error in getClientStats:', error);
+            throw new Error(`Błąd podczas pobierania statystyk: ${error.message}`);
         }
     }
     

@@ -223,25 +223,6 @@ class ClientController {
             res.status(500).json(errorResponse);
         }
     }
-
-    /**
-     * Get client statistics
-     * GET /api/clients/statistics
-     */
-    async getClientStatistics(req, res) {
-        try {
-            const stats = await ClientService.getClientStatistics();
-            
-            res.json({
-                success: true,
-                data: stats
-            });
-            
-        } catch (error) {
-            const errorResponse = ModuleErrorHandler.handleError(error, 'clients');
-            res.status(500).json(errorResponse);
-        }
-    }
 }
 
 module.exports = new ClientController(); 

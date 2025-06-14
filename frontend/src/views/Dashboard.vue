@@ -263,7 +263,6 @@
 import { computed, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { useDashboardStore } from '@/stores/dashboardStore'
 import { 
   Users, 
   Settings, 
@@ -281,11 +280,15 @@ import MetricCard from '@/components/ui/MetricCard.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
-const dashboardStore = useDashboardStore()
 
 const user = computed(() => authStore.user)
-const stats = computed(() => dashboardStore.stats)
-const dataMonitoring = computed(() => dashboardStore.dataMonitoring)
+
+const stats = ref({
+  totalClients: 3,
+  activeDevices: 5,
+  pendingServices: 2,
+  lowStock: 1
+})
 
 const suspendedServices = ref({
   total: 267,
@@ -299,6 +302,13 @@ const alarms = ref({
   disabled: 4,
   mapped: 6,
   notMapped: 1
+})
+
+const dataMonitoring = ref({
+  totalConnections: 1,
+  throughput: 10,
+  latency: 50,
+  errorRate: 2
 })
 
 const systemErrors = ref([
@@ -395,10 +405,7 @@ function getSeverityLabel(severity) {
 }
 
 onMounted(async () => {
-  try {
-    await dashboardStore.fetchDashboardStats()
-  } catch (error) {
-    console.error('Failed to load dashboard data:', error)
-  }
+  // Load dashboard stats - these would be real API calls
+  console.log('Dashboard loaded')
 })
 </script> 

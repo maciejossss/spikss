@@ -1,64 +1,126 @@
+/**
+ * RULE 1: CENTRAL AUTHORIZATION
+ * Central authentication and authorization service for all modules
+ * JWT-based authentication with role-based access control
+ */
+
 const jwt = require('jsonwebtoken');
-const bcrypt = require('bcrypt');
-const { DatabaseService } = require('../database/database');
+const bcrypt = require('bcryptjs');
 const ModuleErrorHandler = require('../error/ModuleErrorHandler');
 
 class AuthService {
     constructor() {
-        this.db = DatabaseService.getInstance();
-        this.logger = ModuleErrorHandler.logger;
-        this.JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
-        this.TOKEN_EXPIRY = '24h';
+        this.jwtSecret = process.env.JWT_SECRET;
+        this.jwtExpiresIn = process.env.JWT_EXPIRES_IN || '24h';
+        this.refreshExpiresIn = process.env.JWT_REFRESH_EXPIRES_IN || '7d';
+        this.bcryptRounds = parseInt(process.env.BCRYPT_ROUNDS) || 12;
     }
 
-    static getInstance() {
-        if (!AuthService.instance) {
-            AuthService.instance = new AuthService();
+    /**
+     * Hash password using bcrypt
+     * @param {string} password - Plain text password
+     * @returns {Promise<string>} Hashed password
+     */
+    async hashPassword(password) {
+        return await bcrypt.hash(password, this.bcryptRounds);
+    }
+
+    /**
+     * Compare password with hash
+     * @param {string} password - Plain text password
+     * @param {string} hash - Hashed password
+     * @returns {Promise<boolean>} Match result
+     */
+    async comparePassword(password, hash) {
+        return await bcrypt.compare(password, hash);
+    }
+
+    /**
+     * Generate JWT token
+     * @param {Object} payload - Token payload (user data)
+     * @returns {string} JWT token
+     */
+    generateToken(payload) {
+        return jwt.sign(payload, this.jwtSecret, { 
+            expiresIn: this.jwtExpiresIn 
+        });
+    }
+
+    /**
+     * Generate refresh token
+     * @param {Object} payload - Token payload
+     * @returns {string} Refresh token
+     */
+    generateRefreshToken(payload) {
+        return jwt.sign(payload, this.jwtSecret, { 
+            expiresIn: this.refreshExpiresIn 
+        });
+    }
+
+    /**
+     * Verify JWT token
+     * @param {string} token - JWT token to verify
+     * @returns {Object} Decoded token payload
+     */
+    verifyToken(token) {
+        return jwt.verify(token, this.jwtSecret);
+    }
+
+    /**
+     * Extract token from request headers
+     * @param {Object} req - Express request object
+     * @returns {string|null} Token or null
+     */
+    extractToken(req) {
+        const authHeader = req.headers.authorization;
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+            return authHeader.substring(7);
         }
-        return AuthService.instance;
+        return null;
     }
 
-    static authenticate() {
+    /**
+     * Authentication middleware
+     * @returns {Function} Express middleware
+     */
+    authenticate() {
         return async (req, res, next) => {
             try {
-                const authHeader = req.headers.authorization;
-                if (!authHeader) {
-                    return res.status(401).json({
-                        success: false,
-                        message: 'No authorization header'
-                    });
-                }
-
-                const token = authHeader.split(' ')[1];
+                const token = this.extractToken(req);
+                
                 if (!token) {
                     return res.status(401).json({
                         success: false,
-                        message: 'No token provided'
+                        message: 'Token not provided'
                     });
                 }
 
-                const instance = AuthService.getInstance();
-                const decoded = instance.verifyToken(token);
+                const decoded = this.verifyToken(token);
                 req.user = decoded;
                 next();
             } catch (error) {
-                ModuleErrorHandler.logger.error('Authentication failed:', error);
-                return res.status(401).json({
+                const errorResponse = ModuleErrorHandler.handleError(
+                    error, 
+                    'AUTH_SERVICE', 
+                    { url: req.url, method: req.method }
+                );
+                
+                res.status(401).json({
                     success: false,
-                    message: 'Invalid or expired token'
+                    message: 'Invalid token'
                 });
             }
         };
     }
 
-    static moduleAccess(module, permission) {
+    /**
+     * Authorization middleware - check user roles
+     * @param {Array<string>} allowedRoles - Allowed roles for the endpoint
+     * @returns {Function} Express middleware
+     */
+    authorize(allowedRoles = []) {
         return (req, res, next) => {
             try {
-                // W trybie development, pomijamy sprawdzanie uprawnień
-                if (process.env.NODE_ENV === 'development') {
-                    return next();
-                }
-
                 if (!req.user) {
                     return res.status(401).json({
                         success: false,
@@ -66,110 +128,105 @@ class AuthService {
                     });
                 }
 
-                // Sprawdź czy użytkownik ma wymagane uprawnienia
-                const userPermissions = req.user.permissions || {};
-                if (!userPermissions[module] || !userPermissions[module].includes(permission)) {
+                // Admin has access to everything
+                if (req.user.role === 'admin') {
+                    return next();
+                }
+
+                // Check if user role is in allowed roles
+                if (allowedRoles.length > 0 && !allowedRoles.includes(req.user.role)) {
                     return res.status(403).json({
                         success: false,
-                        message: `Insufficient permissions for ${module}:${permission}`
+                        message: 'Insufficient permissions'
                     });
                 }
 
                 next();
             } catch (error) {
-                ModuleErrorHandler.logger.error('Module access check failed:', error);
-                return res.status(500).json({
+                const errorResponse = ModuleErrorHandler.handleError(
+                    error, 
+                    'AUTH_SERVICE', 
+                    { userId: req.user?.id, requiredRoles: allowedRoles }
+                );
+                
+                res.status(403).json({
                     success: false,
-                    message: 'Internal server error during permission check'
+                    message: 'Authorization failed'
                 });
             }
         };
     }
 
-    static healthCheck() {
-        return {
-            status: 'healthy',
-            timestamp: new Date().toISOString()
+    /**
+     * Module access control - check if user can access specific module
+     * @param {string} moduleName - Name of the module
+     * @param {string} action - Action being performed (read, write, delete)
+     * @returns {Function} Express middleware
+     */
+    moduleAccess(moduleName, action = 'read') {
+        return (req, res, next) => {
+            try {
+                if (!req.user) {
+                    return res.status(401).json({
+                        success: false,
+                        message: 'User not authenticated'
+                    });
+                }
+
+                // Admin has full access
+                if (req.user.role === 'admin') {
+                    return next();
+                }
+
+                // Check module permissions
+                const permissions = req.user.permissions || {};
+                const modulePermissions = permissions[moduleName] || [];
+
+                if (!modulePermissions.includes(action) && !modulePermissions.includes('all')) {
+                    return res.status(403).json({
+                        success: false,
+                        message: `No ${action} access to ${moduleName} module`
+                    });
+                }
+
+                next();
+            } catch (error) {
+                const errorResponse = ModuleErrorHandler.handleError(
+                    error, 
+                    'AUTH_SERVICE', 
+                    { 
+                        userId: req.user?.id, 
+                        module: moduleName, 
+                        action 
+                    }
+                );
+                
+                res.status(403).json({
+                    success: false,
+                    message: 'Module access check failed'
+                });
+            }
         };
     }
 
-    async validateUser(username, password) {
-        try {
-            const query = 'SELECT * FROM users WHERE username = $1';
-            const result = await this.db.query(query, [username]);
-            
-            if (result.rows.length === 0) {
-                return null;
+    /**
+     * Health check for auth service
+     * @returns {Object} Health status
+     */
+    healthCheck() {
+        return {
+            service: 'AuthService',
+            status: 'healthy',
+            config: {
+                jwtExpiresIn: this.jwtExpiresIn,
+                refreshExpiresIn: this.refreshExpiresIn,
+                bcryptRounds: this.bcryptRounds
             }
-
-            const user = result.rows[0];
-            const isValid = await bcrypt.compare(password, user.password);
-
-            if (!isValid) {
-                return null;
-            }
-
-            delete user.password;
-            return user;
-        } catch (error) {
-            this.logger.error('Error validating user:', error);
-            throw new Error('Authentication failed');
-        }
-    }
-
-    generateToken(user) {
-        try {
-            const payload = {
-                id: user.id,
-                username: user.username,
-                role: user.role,
-                permissions: user.permissions
-            };
-
-            return jwt.sign(payload, this.JWT_SECRET, { expiresIn: this.TOKEN_EXPIRY });
-        } catch (error) {
-            this.logger.error('Error generating token:', error);
-            throw new Error('Token generation failed');
-        }
-    }
-
-    verifyToken(token) {
-        try {
-            return jwt.verify(token, this.JWT_SECRET);
-        } catch (error) {
-            this.logger.error('Error verifying token:', error);
-            throw new Error('Invalid token');
-        }
-    }
-
-    async hashPassword(password) {
-        const saltRounds = 10;
-        return await bcrypt.hash(password, saltRounds);
-    }
-
-    async createUser(userData) {
-        try {
-            const hashedPassword = await this.hashPassword(userData.password);
-            const query = `
-                INSERT INTO users (username, password, email, role, permissions)
-                VALUES ($1, $2, $3, $4, $5)
-                RETURNING id, username, email, role, permissions
-            `;
-            
-            const result = await this.db.query(query, [
-                userData.username,
-                hashedPassword,
-                userData.email,
-                userData.role || 'user',
-                userData.permissions || []
-            ]);
-
-            return result.rows[0];
-        } catch (error) {
-            this.logger.error('Error creating user:', error);
-            throw new Error('User creation failed');
-        }
+        };
     }
 }
 
-module.exports = AuthService; 
+// Create singleton instance
+const authService = new AuthService();
+
+module.exports = authService; 

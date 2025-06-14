@@ -226,66 +226,6 @@ class SystemController {
         }
     }
 
-    /**
-     * Get system monitoring data
-     * GET /api/system/monitoring
-     */
-    async getSystemMonitoring(req, res) {
-        try {
-            const monitoringData = await this.systemService.getMonitoringData();
-            
-            res.json({
-                success: true,
-                data: monitoringData
-            });
-            
-        } catch (error) {
-            const errorResponse = ModuleErrorHandler.handleError(error, 'system');
-            res.status(500).json(errorResponse);
-        }
-    }
-
-    /**
-     * Check database schema and connection
-     */
-    async checkDatabase(req, res) {
-        try {
-            // Test connection
-            const connectionStatus = await DatabaseService.healthCheck();
-            
-            // Check schema
-            const schemaQuery = `
-                SELECT 
-                    table_name,
-                    column_name,
-                    data_type,
-                    character_maximum_length
-                FROM information_schema.columns 
-                WHERE table_schema = 'public'
-                AND table_name = 'clients'
-                ORDER BY ordinal_position;
-            `;
-            
-            const schemaResult = await DatabaseService.query(schemaQuery);
-            
-            // Check if any clients exist
-            const clientsQuery = 'SELECT COUNT(*) as count FROM clients';
-            const clientsResult = await DatabaseService.query(clientsQuery);
-            
-            res.json({
-                success: true,
-                connection: connectionStatus,
-                schema: schemaResult.rows,
-                clientsCount: parseInt(clientsResult.rows[0].count),
-                timestamp: new Date().toISOString()
-            });
-
-        } catch (error) {
-            const errorResponse = ModuleErrorHandler.handleError(error, 'CHECK_DATABASE');
-            res.status(500).json(errorResponse);
-        }
-    }
-
     // Helper methods
 
     async getConnectionCount() {

@@ -38,9 +38,9 @@
               <router-link
                 v-for="module in availableModules"
                 :key="module.name"
-                :to="{ name: module.route }"
+                :to="module.route"
                 class="group flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-colors duration-200"
-                :class="$route.meta.module === module.name ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white'"
+                :class="$route.path.startsWith(module.route) && module.route !== '/' ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white'"
               >
                 <component :is="module.icon" class="mr-3 h-5 w-5" />
                 {{ module.title }}
@@ -177,10 +177,10 @@
               <router-link
                 v-for="module in availableModules"
                 :key="module.name"
-                :to="{ name: module.route }"
+                :to="module.route"
                 @click="showMobileMenu = false"
                 class="group flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-colors duration-200"
-                :class="$route.meta.module === module.name ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white'"
+                :class="$route.path.startsWith(module.route) && module.route !== '/' ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white'"
               >
                 <component :is="module.icon" class="mr-3 h-5 w-5" />
                 {{ module.title }}
@@ -243,52 +243,51 @@ const roleLabel = computed(() => {
   return roles[user.value?.role] || user.value?.role
 })
 
-const availableModules = computed(() => [
-  {
-    name: 'dashboard',
-    title: 'Dashboard',
-    route: 'dashboard',
-    icon: Home,
-    permission: null
-  },
+const modules = [
   {
     name: 'clients',
     title: 'Klienci',
-    route: 'client-list',
     icon: Users,
-    permission: 'clients.read'
+    route: '/clients'
   },
   {
     name: 'devices',
     title: 'Urządzenia',
-    route: 'devices',
-    icon: Flame,
-    permission: 'devices.read'
+    icon: Settings,
+    route: '/devices'
   },
   {
-    name: 'service',
+    name: 'service-records',
     title: 'Serwis',
-    route: 'service',
-    icon: Wrench,
-    permission: 'service.read',
-    badge: pendingServices.value
-  },
-  {
-    name: 'parts',
-    title: 'Części',
-    route: 'parts',
-    icon: Package,
-    permission: 'parts.read',
-    badge: lowStockParts.value
-  },
-  {
-    name: 'invoices',
-    title: 'Faktury',
-    route: 'invoices',
     icon: FileText,
-    permission: 'invoices.read'
+    route: '/service-records'
+  },
+  {
+    name: 'scheduling',
+    title: 'Harmonogram',
+    icon: Calendar,
+    route: '/scheduling',
+    badge: 3
+  },
+  {
+    name: 'inventory',
+    title: 'Magazyn',
+    icon: Package,
+    route: '/inventory'
+  },
+  {
+    name: 'reports',
+    title: 'Raporty',
+    icon: BarChart3,
+    route: '/reports'
   }
-].filter(module => !module.permission || authStore.hasModulePermission(...module.permission.split('.'))))
+]
+
+const availableModules = computed(() => {
+  return modules.filter(module => 
+    authStore.hasModulePermission(module.name, 'read')
+  )
+})
 
 async function handleLogout() {
   await authStore.logout()

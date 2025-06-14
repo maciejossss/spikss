@@ -1,3 +1,4 @@
+require('dotenv').config();
 const DatabaseService = require('./database');
 const ModuleErrorHandler = require('../error/ModuleErrorHandler');
 const migrateClientsTable = require('./migrate-clients');

@@ -194,14 +194,45 @@ class Application {
         // Module routes (auth required)
         this.setupModuleRoutes(apiPrefix);
 
-        // 404 handler
-        this.app.use('*', (req, res) => {
+        // Serve static files from frontend build (for production)
+        if (process.env.NODE_ENV === 'production') {
+            const path = require('path');
+            const frontendBuildPath = path.join(__dirname, '..', 'frontend', 'dist');
+            
+            // Serve static files
+            this.app.use(express.static(frontendBuildPath));
+            
+            // Handle client-side routing - serve index.html for all non-API routes
+            this.app.get('*', (req, res, next) => {
+                // Skip API routes and health check
+                if (req.path.startsWith(apiPrefix) || req.path === '/health') {
+                    return next();
+                }
+                
+                // Serve index.html for all other routes (SPA routing)
+                res.sendFile(path.join(frontendBuildPath, 'index.html'));
+            });
+        }
+
+        // 404 handler for API routes only
+        this.app.use(apiPrefix + '/*', (req, res) => {
             res.status(404).json({
                 success: false,
-                message: 'Endpoint not found',
+                message: 'API endpoint not found',
                 path: req.originalUrl
             });
         });
+        
+        // Final 404 handler for non-production or unmatched routes
+        if (process.env.NODE_ENV !== 'production') {
+            this.app.use('*', (req, res) => {
+                res.status(404).json({
+                    success: false,
+                    message: 'Endpoint not found',
+                    path: req.originalUrl
+                });
+            });
+        }
     }
 
     /**

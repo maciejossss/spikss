@@ -18,7 +18,24 @@ class DatabaseService {
      */
     async initialize() {
         try {
-            this.pool = new Pool({
+            // Log database connection info for debugging
+            ModuleErrorHandler.logger.info('Initializing database connection...', {
+                hasConnectionString: !!process.env.DATABASE_URL,
+                nodeEnv: process.env.NODE_ENV,
+                host: process.env.DB_HOST || 'localhost',
+                port: process.env.DB_PORT || 5432,
+                database: process.env.DB_NAME || 'system_serwisowy'
+            });
+
+            // Use DATABASE_URL if available (Railway), otherwise use individual env vars
+            const poolConfig = process.env.DATABASE_URL ? {
+                connectionString: process.env.DATABASE_URL,
+                ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+                min: parseInt(process.env.DB_POOL_MIN) || 2,
+                max: parseInt(process.env.DB_POOL_MAX) || 10,
+                idleTimeoutMillis: 30000,
+                connectionTimeoutMillis: 2000,
+            } : {
                 host: process.env.DB_HOST || 'localhost',
                 port: process.env.DB_PORT || 5432,
                 database: process.env.DB_NAME || 'system_serwisowy',
@@ -28,7 +45,9 @@ class DatabaseService {
                 max: parseInt(process.env.DB_POOL_MAX) || 10,
                 idleTimeoutMillis: 30000,
                 connectionTimeoutMillis: 2000,
-            });
+            };
+
+            this.pool = new Pool(poolConfig);
 
             // Test connection
             const client = await this.pool.connect();

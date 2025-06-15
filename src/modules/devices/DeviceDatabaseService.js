@@ -21,7 +21,7 @@ class DeviceDatabaseService {
                     client_id, device_type, brand, model, serial_number, 
                     manufacture_year, power_rating, fuel_type, installation_date,
                     warranty_expiry_date, location_description, technical_specifications,
-                    maintenance_interval_days, last_service_date, next_service_date,
+                    maintenance_interval_days, last_service_date, next_service_due,
                     status, condition_rating, notes, created_by
                 ) VALUES (
                     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19
@@ -43,7 +43,7 @@ class DeviceDatabaseService {
                 JSON.stringify(deviceData.technical_specifications || {}),
                 deviceData.maintenance_interval_days || 365,
                 deviceData.last_service_date || null,
-                deviceData.next_service_date || null,
+                deviceData.next_service_due || null,
                 deviceData.status || 'active',
                 deviceData.condition_rating || null,
                 deviceData.notes || null,
@@ -54,7 +54,7 @@ class DeviceDatabaseService {
             return result.rows[0];
 
         } catch (error) {
-            ModuleErrorHandler.handleDatabaseError('createDevice', error);
+            ModuleErrorHandler.handleError('createDevice', error);
             throw error;
         }
     }
@@ -195,7 +195,7 @@ class DeviceDatabaseService {
 
             // Next service overdue filter
             if (next_service_overdue) {
-                whereConditions.push(`d.next_service_date < CURRENT_DATE`);
+                whereConditions.push(`d.next_service_due < CURRENT_DATE`);
             }
 
             const whereClause = whereConditions.length > 0 
@@ -205,7 +205,7 @@ class DeviceDatabaseService {
             // Validate sort column
             const validSortColumns = [
                 'created_at', 'brand', 'model', 'device_type', 'installation_date',
-                'next_service_date', 'status', 'company_name', 'contact_person'
+                'next_service_due', 'status', 'company_name', 'contact_person'
             ];
             
             const sortColumn = validSortColumns.includes(sortBy) ? sortBy : 'created_at';
@@ -221,7 +221,7 @@ class DeviceDatabaseService {
                     u.first_name as created_by_name,
                     u.last_name as created_by_lastname,
                     CASE 
-                        WHEN d.next_service_date < CURRENT_DATE THEN true 
+                        WHEN d.next_service_due < CURRENT_DATE THEN true 
                         ELSE false 
                     END as service_overdue
                 FROM devices d
@@ -267,7 +267,7 @@ class DeviceDatabaseService {
             };
 
         } catch (error) {
-            ModuleErrorHandler.handleDatabaseError('getDevices', error);
+            ModuleErrorHandler.handleError('getDevices', error);
             throw error;
         }
     }
@@ -292,7 +292,7 @@ class DeviceDatabaseService {
                     u.first_name as created_by_name,
                     u.last_name as created_by_lastname,
                     CASE 
-                        WHEN d.next_service_date < CURRENT_DATE THEN true 
+                        WHEN d.next_service_due < CURRENT_DATE THEN true 
                         ELSE false 
                     END as service_overdue
                 FROM devices d
@@ -316,7 +316,7 @@ class DeviceDatabaseService {
             };
 
         } catch (error) {
-            ModuleErrorHandler.handleDatabaseError('getDeviceById', error);
+            ModuleErrorHandler.handleError('getDeviceById', error);
             throw error;
         }
     }
@@ -333,7 +333,7 @@ class DeviceDatabaseService {
                 'client_id', 'device_type', 'brand', 'model', 'serial_number',
                 'manufacture_year', 'power_rating', 'fuel_type', 'installation_date',
                 'warranty_expiry_date', 'location_description', 'technical_specifications',
-                'maintenance_interval_days', 'last_service_date', 'next_service_date',
+                'maintenance_interval_days', 'last_service_date', 'next_service_due',
                 'status', 'condition_rating', 'notes'
             ];
 
@@ -444,12 +444,12 @@ class DeviceDatabaseService {
                     c.contact_person,
                     c.phone as client_phone,
                     c.email as client_email,
-                    CURRENT_DATE - d.next_service_date as days_overdue
+                    CURRENT_DATE - d.next_service_due as days_overdue
                 FROM devices d
                 LEFT JOIN clients c ON d.client_id = c.id
                 WHERE d.status = 'active' 
-                AND d.next_service_date <= CURRENT_DATE + INTERVAL '${daysAhead} days'
-                ORDER BY d.next_service_date ASC
+                AND d.next_service_due <= CURRENT_DATE + INTERVAL '${daysAhead} days'
+                ORDER BY d.next_service_due ASC
             `;
 
             const result = await DatabaseService.query(query);
@@ -473,8 +473,8 @@ class DeviceDatabaseService {
                     COUNT(*) FILTER (WHERE status = 'active') as active_devices,
                     COUNT(*) FILTER (WHERE status = 'inactive') as inactive_devices,
                     COUNT(*) FILTER (WHERE status = 'decommissioned') as decommissioned_devices,
-                    COUNT(*) FILTER (WHERE next_service_date < CURRENT_DATE) as overdue_services,
-                    COUNT(*) FILTER (WHERE next_service_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days') as upcoming_services,
+                    COUNT(*) FILTER (WHERE next_service_due < CURRENT_DATE) as overdue_services,
+                    COUNT(*) FILTER (WHERE next_service_due BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days') as upcoming_services,
                     COUNT(DISTINCT device_type) as device_types_count,
                     COUNT(DISTINCT brand) as brands_count
                 FROM devices
@@ -500,7 +500,7 @@ class DeviceDatabaseService {
                 SELECT 
                     d.*,
                     CASE 
-                        WHEN d.next_service_date < CURRENT_DATE THEN true 
+                        WHEN d.next_service_due < CURRENT_DATE THEN true 
                         ELSE false 
                     END as service_overdue
                 FROM devices d

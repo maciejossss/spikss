@@ -94,7 +94,7 @@ class MigrationService {
                         technical_specifications JSONB DEFAULT '{}',
                         maintenance_interval_days INTEGER DEFAULT 365,
                         last_service_date DATE,
-                        next_service_date DATE,
+                        next_service_due DATE,
                         status VARCHAR(20) DEFAULT 'active', -- active, inactive, decommissioned
                         condition_rating INTEGER CHECK (condition_rating >= 1 AND condition_rating <= 5),
                         notes TEXT,
@@ -107,7 +107,7 @@ class MigrationService {
                     CREATE INDEX idx_devices_type ON devices(device_type);
                     CREATE INDEX idx_devices_brand ON devices(brand);
                     CREATE INDEX idx_devices_serial ON devices(serial_number);
-                    CREATE INDEX idx_devices_next_service ON devices(next_service_date);
+                    CREATE INDEX idx_devices_next_service ON devices(next_service_due);
                     CREATE INDEX idx_devices_status ON devices(status);
                 `
             },

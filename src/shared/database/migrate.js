@@ -276,6 +276,28 @@ class MigrationService {
                         executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     );
                 `
+            },
+            {
+                version: '009',
+                name: 'fix_devices_column_name',
+                description: 'Rename next_service_date to next_service_due for consistency',
+                sql: `
+                    -- Check if the old column exists and rename it
+                    DO $$
+                    BEGIN
+                        IF EXISTS (
+                            SELECT 1 FROM information_schema.columns 
+                            WHERE table_name = 'devices' 
+                            AND column_name = 'next_service_date'
+                        ) THEN
+                            ALTER TABLE devices RENAME COLUMN next_service_date TO next_service_due;
+                        END IF;
+                    END $$;
+                    
+                    -- Ensure the index exists with the correct name
+                    DROP INDEX IF EXISTS idx_devices_next_service_date;
+                    CREATE INDEX IF NOT EXISTS idx_devices_next_service ON devices(next_service_due);
+                `
             }
         ];
     }

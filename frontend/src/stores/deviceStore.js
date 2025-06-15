@@ -388,7 +388,7 @@ export const useDeviceStore = defineStore('devices', () => {
     try {
       const response = await api.patch('/devices/batch/service-date', {
         device_ids: deviceIds,
-        next_service_date: serviceDate
+                        next_service_due: serviceDate
       })
       
       if (response.data.success) {

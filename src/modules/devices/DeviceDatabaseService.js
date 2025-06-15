@@ -377,7 +377,7 @@ class DeviceDatabaseService {
             return result.rows[0];
 
         } catch (error) {
-            ModuleErrorHandler.handleDatabaseError('updateDevice', error);
+            ModuleErrorHandler.handleError(error, 'devices', { operation: 'updateDevice' });
             throw error;
         }
     }
@@ -395,7 +395,7 @@ class DeviceDatabaseService {
             return result.rows.length > 0;
 
         } catch (error) {
-            ModuleErrorHandler.handleDatabaseError('deleteDevice', error);
+            ModuleErrorHandler.handleError(error, 'devices', { operation: 'deleteDevice' });
             throw error;
         }
     }
@@ -425,7 +425,7 @@ class DeviceDatabaseService {
             return result.rows.length > 0 ? result.rows[0] : null;
 
         } catch (error) {
-            ModuleErrorHandler.handleDatabaseError('findBySerialNumber', error);
+            ModuleErrorHandler.handleError(error, 'devices', { operation: 'findBySerialNumber' });
             throw error;
         }
     }
@@ -456,7 +456,7 @@ class DeviceDatabaseService {
             return result.rows;
 
         } catch (error) {
-            ModuleErrorHandler.handleDatabaseError('getDevicesDueForService', error);
+            ModuleErrorHandler.handleError(error, 'devices', { operation: 'getDevicesDueForService' });
             throw error;
         }
     }
@@ -484,7 +484,7 @@ class DeviceDatabaseService {
             return result.rows[0];
 
         } catch (error) {
-            ModuleErrorHandler.handleDatabaseError('getDeviceStatistics', error);
+            ModuleErrorHandler.handleError(error, 'devices', { operation: 'getDeviceStatistics' });
             throw error;
         }
     }
@@ -518,7 +518,7 @@ class DeviceDatabaseService {
             }));
 
         } catch (error) {
-            ModuleErrorHandler.handleDatabaseError('getDevicesByClientId', error);
+            ModuleErrorHandler.handleError(error, 'devices', { operation: 'getDevicesByClientId' });
             throw error;
         }
     }

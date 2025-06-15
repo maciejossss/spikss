@@ -10,7 +10,7 @@ const ModuleErrorHandler = require('../error/ModuleErrorHandler');
 
 class AuthService {
     constructor() {
-        this.jwtSecret = process.env.JWT_SECRET;
+        this.jwtSecret = process.env.JWT_SECRET || 'your-super-secret-jwt-key-for-production-2024';
         this.jwtExpiresIn = process.env.JWT_EXPIRES_IN || '24h';
         this.refreshExpiresIn = process.env.JWT_REFRESH_EXPIRES_IN || '7d';
         this.bcryptRounds = parseInt(process.env.BCRYPT_ROUNDS) || 12;

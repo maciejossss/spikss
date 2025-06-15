@@ -1,5 +1,13 @@
 # System Serwisowy Palniki & Kotły
 
+Profesjonalny system zarządzania serwisem urządzeń grzewczych.
+
+## Status wdrożenia
+- ✅ Backend API
+- ✅ Frontend React
+- ✅ Baza danych PostgreSQL
+- 🔄 Railway deployment (aktualizacja JWT_SECRET)
+
 Modularny system zarządzania serwisem urządzeń grzewczych z **Vue.js 3 frontend** i **Node.js backend**.
 
 ## 🏗️ Architektura

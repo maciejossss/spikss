@@ -241,6 +241,31 @@ class Application {
     setupAuthRoutes(apiPrefix) {
         const authRouter = express.Router();
 
+        // Manual seeding endpoint (only in production for Railway)
+        if (process.env.NODE_ENV === 'production') {
+            authRouter.post('/seed-database', async (req, res) => {
+                try {
+                    const SeedService = require('./shared/database/seed');
+                    const seedService = new SeedService();
+                    
+                    await seedService.runSeeds();
+                    
+                    res.json({
+                        success: true,
+                        message: 'Database seeded successfully',
+                        timestamp: new Date().toISOString()
+                    });
+                } catch (error) {
+                    ModuleErrorHandler.logger.error('Manual seeding failed:', error);
+                    res.status(500).json({
+                        success: false,
+                        message: 'Seeding failed',
+                        error: error.message
+                    });
+                }
+            });
+        }
+
         // Development auto-login endpoint (only in development)
         if (process.env.NODE_ENV !== 'production') {
             authRouter.post('/dev-login', async (req, res) => {

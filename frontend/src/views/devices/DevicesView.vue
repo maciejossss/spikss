@@ -233,9 +233,9 @@
                 Data instalacji
                 <i class="fas fa-sort" :class="getSortIcon('installation_date')"></i>
               </th>
-              <th @click="sortBy('next_service_due')" class="sortable">
+              <th @click="sortBy('next_service_date')" class="sortable">
                 Następny serwis
-                <i class="fas fa-sort" :class="getSortIcon('next_service_due')"></i>
+                <i class="fas fa-sort" :class="getSortIcon('next_service_date')"></i>
               </th>
               <th @click="sortBy('status')" class="sortable">
                 Status
@@ -287,10 +287,10 @@
               <td>
                 <div class="service-info">
                   <span 
-                    v-if="device.next_service_due"
+                    v-if="device.next_service_date"
                     :class="getServiceStatusClass(device)"
                   >
-                    {{ formatDate(device.next_service_due) }}
+                    {{ formatDate(device.next_service_date) }}
                   </span>
                   <span v-else class="text-muted">Brak harmonogramu</span>
                   

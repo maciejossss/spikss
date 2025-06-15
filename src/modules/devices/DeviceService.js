@@ -345,8 +345,8 @@ class DeviceService {
             deviceData.created_by = userId;
 
             // Calculate next service date if not provided
-            if (deviceData.installation_date && !deviceData.next_service_due) {
-                deviceData.next_service_due = this.calculateNextServiceDate(
+            if (deviceData.installation_date && !deviceData.next_service_date) {
+                deviceData.next_service_date = this.calculateNextServiceDate(
                     deviceData.installation_date, 
                     deviceData.maintenance_interval_days || 365
                 );
@@ -475,7 +475,7 @@ class DeviceService {
                     const interval = updateData.maintenance_interval_days || currentDevice.maintenance_interval_days;
                     
                     if (serviceDate && interval) {
-                        updateData.next_service_due = this.calculateNextServiceDate(serviceDate, interval);
+                        updateData.next_service_date = this.calculateNextServiceDate(serviceDate, interval);
                     }
                 }
             }
@@ -839,7 +839,7 @@ class DeviceService {
             fuel_type_label: device.fuel_type ? this.formatFuelTypeLabel(device.fuel_type) : null,
             status_label: this.formatStatusLabel(device.status),
             warranty_status: this.getWarrantyStatus(device.warranty_expiry_date),
-            service_status: this.getServiceStatus(device.next_service_due),
+            service_status: this.getServiceStatus(device.next_service_date),
             age_years: device.manufacture_year ? new Date().getFullYear() - device.manufacture_year : null
         };
     }

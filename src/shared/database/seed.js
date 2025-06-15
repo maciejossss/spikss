@@ -408,7 +408,7 @@ class SeedService {
                         client_id, device_type, brand, model, serial_number,
                         manufacture_year, power_rating, fuel_type, installation_date,
                         warranty_expiry_date, location_description, maintenance_interval_days,
-                        next_service_due, status, condition_rating, created_by
+                        next_service_date, status, condition_rating, created_by
                     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
                 `, [
                     clientId,

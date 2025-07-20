@@ -1,16 +1,23 @@
 @echo off
-set DATABASE_URL=postgresql://postgres:RejcVvKxoptptXgEpWDDwuKBDwgokfwb@shuttle.proxy.rlwy.net:15442/railway
-set NODE_ENV=production
-set PGSSLMODE=require
-set SKIP_DB_INIT=false
-set PORT=8080
-set JWT_SECRET=your_jwt_secret_key
-set TOKEN_EXPIRY=24h
-set REFRESH_TOKEN_EXPIRY=7d
-set RATE_LIMIT_WINDOW_MS=60000
-set RATE_LIMIT_MAX_REQUESTS=100
-set ALLOWED_ORIGINS=http://localhost:8080,http://localhost:8082,http://localhost:3000
-set LOG_LEVEL=debug
+echo ========================================
+echo   System Serwisowy - Uruchamianie
+echo ========================================
+echo.
 
-echo Starting application...
-npm run start-prod 
+cd /d "%~dp0desktop"
+
+echo [1/2] Sprawdzanie zależności...
+if not exist "node_modules" (
+    echo Instalowanie zależności...
+    npm install
+)
+
+echo [2/2] Uruchamianie serwera...
+echo.
+echo Serwer będzie dostępny na: http://localhost:5173
+echo Naciśnij Ctrl+C aby zatrzymać serwer
+echo.
+
+npm run dev:vue
+
+pause 

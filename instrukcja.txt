@@ -1,0 +1,112 @@
+🖥 Nowy system serwisowy – wersja desktop (.exe)
+🎛 Główne cechy:
+✅ Jeden moduł główny z górnym menu i kafelkami – wszystkie opcje dostępne w jednym miejscu.
+✅ Szybki interfejs oparty o formularze i okna modalne (bez konieczności przechodzenia między modułami).
+✅ Możliwość pracy offline (synchronizacja po połączeniu z Internetem).
+✅ Bezpieczne logowanie (hasło + opcjonalnie 2FA).
+
+📂 Funkcje systemu (desktop)
+📋 1. Klienci
+Rejestracja nowych klientów (osoby prywatne / firmy).
+
+Lista klientów z możliwością filtrowania i wyszukiwania.
+
+Historia kontaktów i zgłoszeń klienta.
+
+Automatyczne przypomnienia o przeglądach okresowych urządzeń.
+
+🔥 2. Urządzenia serwisowe
+Możliwość tworzenia kategorii i podkategorii urządzeń:
+
+Kotły gazowe / olejowe / na paliwo stałe
+
+Piece / nagrzewnice
+
+Palniki (gazowe, olejowe, przemysłowe)
+
+Inne urządzenia (klimatyzacja, rekuperacja itd.)
+
+Przypisywanie urządzeń do klienta.
+
+Dodawanie danych technicznych urządzenia:
+
+Model, numer seryjny, rok produkcji, moc, rodzaj paliwa
+
+Data ostatniego serwisu, części zamienne
+
+Tworzenie własnych kategorii i podkategorii (np. „Kotły Viessmann → Gazowe → Kondensacyjne”).
+
+📝 3. Zlecenia serwisowe
+Tworzenie zgłoszeń (awarie, przeglądy, montaż, konserwacja).
+
+Statusy zlecenia: Nowe, W trakcie, Zakończone, Oczekuje na części itd.
+
+Przypisywanie zlecenia serwisantowi.
+
+Możliwość dodania zdjęć, plików, notatek.
+
+Szybki podgląd historii zleceń dla danego klienta lub urządzenia.
+
+Harmonogram wizyt serwisantów (kalendarz).
+
+💸 4. Faktury i płatności
+Wystawianie faktur i paragonów (integracja z drukarką fiskalną – opcjonalnie).
+
+Śledzenie płatności (status: opłacone / nieopłacone).
+
+Raportowanie przychodów i kosztów.
+
+📊 5. Raporty
+Lista urządzeń wymagających przeglądu w najbliższym czasie.
+
+Raporty serwisowe (ile zleceń, jakie urządzenia, kto wykonał).
+
+Raporty finansowe (przychody, koszty, zaległe płatności).
+
+⚙️ 6. Ustawienia
+Zarządzanie kontami serwisantów i uprawnieniami.
+
+Konfiguracja kategorii/podkategorii urządzeń.
+
+Import/eksport danych (np. kopia zapasowa).
+
+📱 Aplikacja mobilna (Android/iOS)
+👨‍🔧 Dla serwisantów:
+Podgląd przypisanych zleceń.
+
+Zgłaszanie wykonania usługi (ze zdjęciami i notatkami).
+
+Zmiana statusu zlecenia.
+
+GPS – nawigacja do klienta.
+
+👥 Dla klientów:
+Szybkie zgłaszanie usterki (formularz + zdjęcia).
+
+Podgląd statusu zlecenia.
+
+Historia zleceń i urządzeń.
+
+Powiadomienia o zbliżającym się przeglądzie.
+
+🛡️ Bezpieczeństwo
+Szyfrowanie bazy danych.
+
+Backup danych lokalny i w chmurze (opcjonalnie).
+
+Logowanie wieloskładnikowe (MFA).
+
+📦 Technologia
+Desktop .exe: Electron + Vue 3 + Node.js + SQLite (lekki, szybki, lokalny)
+
+Mobile: React Native (Android i iOS)
+
+Synchronizacja danych między desktopem a aplikacją mobilną przez API.
+
+📐 Interfejs
+Górne menu z kafelkami dla szybkiego dostępu.
+
+Wszystkie akcje w modalach/formularzach – zero przeklikiwania między modułami.
+
+Nowoczesny, responsywny design (dostosowany do ekranu desktop i mobile).
+

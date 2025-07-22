@@ -9,17 +9,30 @@ const pgPool = new Pool({
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
-// SQLite connection (local)
+// SQLite connection (local) - graceful handling if file doesn't exist
 const sqliteDbPath = path.join(process.env.APPDATA || process.env.HOME, 'serwis-desktop', 'serwis.db');
 console.log(`📂 SQLite database path: ${sqliteDbPath}`);
 
-const sqliteDb = new sqlite3.Database(sqliteDbPath, sqlite3.OPEN_READONLY, (err) => {
-  if (err) {
-    console.error('❌ SQLite connection error:', err.message);
-  } else {
-    console.log('✅ Connected to SQLite database');
-  }
-});
+let sqliteDb = null;
+let sqliteConnected = false;
+
+// Try to connect to SQLite, but don't fail if it doesn't exist
+try {
+  sqliteDb = new sqlite3.Database(sqliteDbPath, sqlite3.OPEN_READONLY, (err) => {
+    if (err) {
+      console.error('❌ SQLite connection error:', err.message);
+      console.log('⚠️ SQLite not available - will create empty PostgreSQL tables with test data');
+      sqliteConnected = false;
+    } else {
+      console.log('✅ Connected to SQLite database');
+      sqliteConnected = true;
+    }
+  });
+} catch (error) {
+  console.error('❌ SQLite connection failed:', error.message);
+  console.log('⚠️ SQLite not available - will create empty PostgreSQL tables with test data');
+  sqliteConnected = false;
+}
 
 async function createTables() {
   console.log('🏗️ Creating PostgreSQL tables to match local SQLite structure...');
@@ -272,9 +285,27 @@ async function migrateUsers() {
   return new Promise((resolve, reject) => {
     console.log('👥 Migrating users...');
     
+    if (!sqliteConnected) {
+      console.log('⚠️ SQLite not available, creating test technician in PostgreSQL');
+      (async () => {
+        try {
+          await pgPool.query(`
+            INSERT INTO users (id, username, password_hash, full_name, email, role, is_active) 
+            VALUES (2, 'jan.technik', '$2a$10$X8VcQUzK5v7QdD1CrO3A8uF8qW4nH2mT9jKpL6xR7sE9A1B3C4D5E6', 'Jan Technik', 'jan.technik@serwis.pl', 'technician', true)
+            ON CONFLICT (username) DO UPDATE SET full_name = EXCLUDED.full_name
+          `);
+          console.log('✅ Created test technician in PostgreSQL');
+        } catch (error) {
+          console.error('❌ Error creating test technician in PostgreSQL:', error.message);
+        }
+        resolve();
+      })();
+      return;
+    }
+
     sqliteDb.all('SELECT * FROM users', async (err, rows) => {
       if (err) {
-        console.log('⚠️ Users table does not exist in SQLite, creating test technician');
+        console.log('⚠️ Users table does not exist in SQLite, creating test technician in PostgreSQL');
         // Create test technician if table doesn't exist
         try {
           await pgPool.query(`
@@ -282,9 +313,9 @@ async function migrateUsers() {
             VALUES (2, 'jan.technik', '$2a$10$X8VcQUzK5v7QdD1CrO3A8uF8qW4nH2mT9jKpL6xR7sE9A1B3C4D5E6', 'Jan Technik', 'jan.technik@serwis.pl', 'technician', true)
             ON CONFLICT (username) DO UPDATE SET full_name = EXCLUDED.full_name
           `);
-          console.log('✅ Created test technician');
+          console.log('✅ Created test technician in PostgreSQL');
         } catch (error) {
-          console.error('❌ Error creating test technician:', error.message);
+          console.error('❌ Error creating test technician in PostgreSQL:', error.message);
         }
         resolve();
         return;
@@ -321,9 +352,15 @@ async function migrateDeviceCategories() {
   return new Promise((resolve, reject) => {
     console.log('📦 Migrating device categories...');
     
+    if (!sqliteConnected) {
+      console.log('⚠️ SQLite not available, skipping device categories migration in PostgreSQL');
+      resolve();
+      return;
+    }
+
     sqliteDb.all('SELECT * FROM device_categories', async (err, rows) => {
       if (err) {
-        console.log('⚠️ Device categories table does not exist, skipping');
+        console.log('⚠️ Device categories table does not exist in SQLite, skipping');
         resolve();
         return;
       }
@@ -357,6 +394,12 @@ async function migrateClients() {
   return new Promise((resolve, reject) => {
     console.log('👥 Migrating clients...');
     
+    if (!sqliteConnected) {
+      console.log('⚠️ SQLite not available, skipping clients migration in PostgreSQL');
+      resolve();
+      return;
+    }
+
     sqliteDb.all('SELECT * FROM clients', async (err, rows) => {
       if (err) {
         reject(err);
@@ -399,6 +442,12 @@ async function migrateDevices() {
   return new Promise((resolve, reject) => {
     console.log('💻 Migrating devices...');
     
+    if (!sqliteConnected) {
+      console.log('⚠️ SQLite not available, skipping devices migration in PostgreSQL');
+      resolve();
+      return;
+    }
+
     sqliteDb.all('SELECT * FROM devices', async (err, rows) => {
       if (err) {
         reject(err);
@@ -440,6 +489,12 @@ async function migrateServiceOrders() {
   return new Promise((resolve, reject) => {
     console.log('📋 Migrating service orders...');
     
+    if (!sqliteConnected) {
+      console.log('⚠️ SQLite not available, skipping service orders migration in PostgreSQL');
+      resolve();
+      return;
+    }
+
     sqliteDb.all('SELECT * FROM service_orders', async (err, rows) => {
       if (err) {
         reject(err);
@@ -484,9 +539,15 @@ async function migrateSpareParts() {
   return new Promise((resolve, reject) => {
     console.log('🔧 Migrating spare parts...');
     
+    if (!sqliteConnected) {
+      console.log('⚠️ SQLite not available, skipping spare parts migration in PostgreSQL');
+      resolve();
+      return;
+    }
+
     sqliteDb.all('SELECT * FROM spare_parts', async (err, rows) => {
       if (err) {
-        console.log('⚠️ Spare parts table does not exist, skipping');
+        console.log('⚠️ Spare parts table does not exist in SQLite, skipping');
         resolve();
         return;
       }
@@ -524,9 +585,15 @@ async function migrateOrderParts() {
   return new Promise((resolve, reject) => {
     console.log('🔗 Migrating order parts...');
     
+    if (!sqliteConnected) {
+      console.log('⚠️ SQLite not available, skipping order parts migration in PostgreSQL');
+      resolve();
+      return;
+    }
+
     sqliteDb.all('SELECT * FROM order_parts', async (err, rows) => {
       if (err) {
-        console.log('⚠️ Order parts table does not exist, skipping');
+        console.log('⚠️ Order parts table does not exist in SQLite, skipping');
         resolve();
         return;
       }
@@ -560,9 +627,15 @@ async function migrateInvoices() {
   return new Promise((resolve, reject) => {
     console.log('🧾 Migrating invoices...');
     
+    if (!sqliteConnected) {
+      console.log('⚠️ SQLite not available, skipping invoices migration in PostgreSQL');
+      resolve();
+      return;
+    }
+
     sqliteDb.all('SELECT * FROM invoices', async (err, rows) => {
       if (err) {
-        console.log('⚠️ Invoices table does not exist, skipping');
+        console.log('⚠️ Invoices table does not exist in SQLite, skipping');
         resolve();
         return;
       }
@@ -599,9 +672,15 @@ async function migrateInvoiceItems() {
   return new Promise((resolve, reject) => {
     console.log('📑 Migrating invoice items...');
     
+    if (!sqliteConnected) {
+      console.log('⚠️ SQLite not available, skipping invoice items migration in PostgreSQL');
+      resolve();
+      return;
+    }
+
     sqliteDb.all('SELECT * FROM invoice_items', async (err, rows) => {
       if (err) {
-        console.log('⚠️ Invoice items table does not exist, skipping');
+        console.log('⚠️ Invoice items table does not exist in SQLite, skipping');
         resolve();
         return;
       }
@@ -637,9 +716,15 @@ async function migrateCalendarEvents() {
   return new Promise((resolve, reject) => {
     console.log('📅 Migrating calendar events...');
     
+    if (!sqliteConnected) {
+      console.log('⚠️ SQLite not available, skipping calendar events migration in PostgreSQL');
+      resolve();
+      return;
+    }
+
     sqliteDb.all('SELECT * FROM calendar_events', async (err, rows) => {
       if (err) {
-        console.log('⚠️ Calendar events table does not exist, skipping');
+        console.log('⚠️ Calendar events table does not exist in SQLite, skipping');
         resolve();
         return;
       }
@@ -675,9 +760,15 @@ async function migrateDeviceFiles() {
   return new Promise((resolve, reject) => {
     console.log('📎 Migrating device files...');
     
+    if (!sqliteConnected) {
+      console.log('⚠️ SQLite not available, skipping device files migration in PostgreSQL');
+      resolve();
+      return;
+    }
+
     sqliteDb.all('SELECT * FROM device_files', async (err, rows) => {
       if (err) {
-        console.log('⚠️ Device files table does not exist, skipping');
+        console.log('⚠️ Device files table does not exist in SQLite, skipping');
         resolve();
         return;
       }
@@ -731,7 +822,9 @@ async function main() {
   } catch (error) {
     console.error('❌ Migration failed:', error);
   } finally {
-    sqliteDb.close();
+    if (sqliteDb) {
+      sqliteDb.close();
+    }
     await pgPool.end();
   }
 }

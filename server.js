@@ -124,6 +124,16 @@ async function startServer() {
     await db.testConnection();
     console.log('✅ Database connected successfully');
     
+    // Run database migrations for Railway
+    console.log('🔧 Running database migrations...');
+    try {
+      const migrate = require('./database/migrate');
+      await migrate.main();
+      console.log('✅ Database migrations completed');
+    } catch (migrationError) {
+      console.error('⚠️ Migration error (continuing):', migrationError.message);
+    }
+    
     // Start server
     app.listen(PORT, '0.0.0.0', () => {
       console.log('🚀 ========================================');

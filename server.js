@@ -69,27 +69,212 @@ app.use(express.static('public', {
 
 // ===== ROUTES =====
 
-// API routes (before catch-all)
-app.use('/api', healthRoutes);
-app.use('/api', techniciansRoutes);
-app.use('/api/desktop', ordersRoutes);
-
-// Health check for API testing
-app.get('/api', (req, res) => {
+// Health check
+app.get('/api/health', (req, res) => {
   res.json({
     message: '🚀 Serwis Mobile API - Railway Deployment Ready!',
-    timestamp: new Date().toISOString(),
     status: 'operational',
-    version: '1.0.0',
-    deployment: 'railway',
-    endpoints: [
-      'GET /api/health - Health check',
-      'GET /api/technicians - Get technicians list', 
-      'GET /api/desktop/orders/:userId - Get orders for technician',
-      'PUT /api/desktop/orders/:orderId/status - Update order status'
-    ]
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
+    version: '1.0.0'
   });
 });
+
+// Test database connection
+app.get('/api/health/db', async (req, res) => {
+  try {
+    const start = Date.now();
+    await db.testConnection();
+    const responseTime = Date.now() - start;
+    
+    res.json({
+      status: 'OK',
+      timestamp: new Date().toISOString(),
+      database: {
+        status: 'connected',
+        responseTime: `${responseTime}ms`,
+        pool: {
+          totalCount: db.pool?.totalCount || 0,
+          idleCount: db.pool?.idleCount || 0,
+          waitingCount: db.pool?.waitingCount || 0
+        }
+      },
+      environment: process.env.NODE_ENV || 'development',
+      version: '1.0.0'
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'ERROR',
+      timestamp: new Date().toISOString(),
+      database: {
+        status: 'disconnected',
+        error: error.message
+      }
+    });
+  }
+});
+
+// 🚀 SYNC ENDPOINT: Odbieraj zlecenia z desktop app
+app.post('/api/sync/orders', async (req, res) => {
+  try {
+    const orderData = req.body;
+    
+    console.log(`📤 Otrzymano zlecenie z desktop: ${orderData.order_number}`);
+    
+    // Walidacja wymaganych pól
+    if (!orderData.order_number || !orderData.title) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: order_number, title'
+      });
+    }
+    
+    // Przygotuj dane do PostgreSQL
+    const now = new Date().toISOString();
+    const insertData = {
+      order_number: orderData.order_number,
+      client_id: orderData.client_id || null,
+      device_id: orderData.device_id || null,
+      assigned_user_id: orderData.assigned_user_id || orderData.assigned_to || null,
+      service_categories: JSON.stringify(orderData.service_categories || []),
+      status: orderData.status || 'new',
+      priority: orderData.priority || 'medium',
+      type: orderData.type || 'maintenance',
+      title: orderData.title,
+      description: orderData.description || '',
+      scheduled_date: orderData.scheduled_date || null,
+      estimated_hours: orderData.estimated_hours || 0,
+      labor_cost: orderData.labor_cost || 0,
+      parts_cost: orderData.parts_cost || 0,
+      total_cost: orderData.total_cost || 0,
+      notes: orderData.notes || '',
+      created_at: now,
+      updated_at: now
+    };
+    
+    // Zapisz w PostgreSQL
+    const query = `
+      INSERT INTO service_orders (
+        order_number, client_id, device_id, assigned_user_id, service_categories,
+        status, priority, type, title, description, scheduled_date, 
+        estimated_hours, labor_cost, parts_cost, total_cost, notes,
+        created_at, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+      ON CONFLICT (order_number) 
+      DO UPDATE SET
+        title = EXCLUDED.title,
+        description = EXCLUDED.description,
+        status = EXCLUDED.status,
+        assigned_user_id = EXCLUDED.assigned_user_id,
+        updated_at = EXCLUDED.updated_at
+      RETURNING id, order_number, status
+    `;
+    
+    const result = await db.query(query, [
+      insertData.order_number, insertData.client_id, insertData.device_id, 
+      insertData.assigned_user_id, insertData.service_categories, insertData.status,
+      insertData.priority, insertData.type, insertData.title, insertData.description,
+      insertData.scheduled_date, insertData.estimated_hours, insertData.labor_cost,
+      insertData.parts_cost, insertData.total_cost, insertData.notes,
+      insertData.created_at, insertData.updated_at
+    ]);
+    
+    const savedOrder = result.rows[0];
+    
+    console.log(`✅ Zlecenie ${savedOrder.order_number} zapisane w Railway PostgreSQL (ID: ${savedOrder.id})`);
+    
+    res.json({
+      success: true,
+      message: 'Order synced to Railway PostgreSQL',
+      order: {
+        id: savedOrder.id,
+        order_number: savedOrder.order_number,
+        status: savedOrder.status
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Błąd synchronizacji zlecenia:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Database error during order sync',
+      details: error.message
+    });
+  }
+});
+
+// 🚀 SYNC ENDPOINT: Odbieraj przypisania zleceń z desktop app
+app.put('/api/sync/assign', async (req, res) => {
+  try {
+    const { orderId, technicianId, notes, status, assignedAt } = req.body;
+    
+    console.log(`📤 Otrzymano przypisanie zlecenia ${orderId} do technika ${technicianId}`);
+    
+    // Walidacja wymaganych pól
+    if (!orderId || !technicianId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: orderId, technicianId'
+      });
+    }
+    
+    const now = new Date().toISOString();
+    
+    // Zaktualizuj zlecenie w PostgreSQL
+    const query = `
+      UPDATE service_orders 
+      SET 
+        assigned_user_id = $1,
+        status = $2,
+        notes = COALESCE($3, notes),
+        updated_at = $4
+      WHERE id = $5
+      RETURNING id, order_number, assigned_user_id, status
+    `;
+    
+    const result = await db.query(query, [
+      technicianId,
+      status || 'new',
+      notes,
+      assignedAt || now,
+      orderId
+    ]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: `Order ${orderId} not found in Railway database`
+      });
+    }
+    
+    const updatedOrder = result.rows[0];
+    
+    console.log(`✅ Zlecenie ${updatedOrder.order_number} przypisane do technika ${technicianId} w Railway PostgreSQL`);
+    
+    res.json({
+      success: true,
+      message: 'Order assignment synced to Railway PostgreSQL',
+      order: {
+        id: updatedOrder.id,
+        order_number: updatedOrder.order_number,
+        assigned_user_id: updatedOrder.assigned_user_id,
+        status: updatedOrder.status
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Błąd synchronizacji przypisania:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Database error during assignment sync',
+      details: error.message
+    });
+  }
+});
+
+// API Routes
+app.use('/api/technicians', require('./routes/technicians'));
+app.use('/api/desktop/orders', require('./routes/orders'));
 
 // Mobile App SPA - serve index.html for all non-API routes
 app.get('*', (req, res) => {

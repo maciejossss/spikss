@@ -25,7 +25,7 @@ app.use(helmet({
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minute
-  max: 100, // limit each IP to 100 requests per windowMs
+  max: 200, // limit each IP to 200 requests per windowMs
   message: {
     error: 'Too many requests from this IP, please try again later'
   }
@@ -68,51 +68,11 @@ app.use(express.static('public', {
 }));
 
 // ===== ROUTES =====
+app.use('/api/health', healthRoutes);
+app.use('/api/technicians', techniciansRoutes);
+app.use('/api/desktop/orders', ordersRoutes);
 
-// Health check
-app.get('/api/health', (req, res) => {
-  res.json({
-    message: '🚀 Serwis Mobile API - Railway Deployment Ready!',
-    status: 'operational',
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development',
-    version: '1.0.0'
-  });
-});
-
-// Test database connection
-app.get('/api/health/db', async (req, res) => {
-  try {
-    const start = Date.now();
-    await db.testConnection();
-    const responseTime = Date.now() - start;
-    
-    res.json({
-      status: 'OK',
-      timestamp: new Date().toISOString(),
-      database: {
-        status: 'connected',
-        responseTime: `${responseTime}ms`,
-        pool: {
-          totalCount: db.pool?.totalCount || 0,
-          idleCount: db.pool?.idleCount || 0,
-          waitingCount: db.pool?.waitingCount || 0
-        }
-      },
-      environment: process.env.NODE_ENV || 'development',
-      version: '1.0.0'
-    });
-  } catch (error) {
-    res.status(500).json({
-      status: 'ERROR',
-      timestamp: new Date().toISOString(),
-      database: {
-        status: 'disconnected',
-        error: error.message
-      }
-    });
-  }
-});
+// === SYNC ENDPOINTS FOR DESKTOP ===
 
 // 🚀 SYNC ENDPOINT: Odbieraj zlecenia z desktop app
 app.post('/api/sync/orders', async (req, res) => {
@@ -249,7 +209,7 @@ app.put('/api/sync/assign', async (req, res) => {
     
     const updatedOrder = result.rows[0];
     
-    console.log(`✅ Zlecenie ${updatedOrder.order_number} przypisane do technika ${technicianId} w Railway PostgreSQL`);
+    console.log(`✅ Przypisano zlecenie ${updatedOrder.order_number} do technika ${technicianId}`);
     
     res.json({
       success: true,
@@ -263,18 +223,32 @@ app.put('/api/sync/assign', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Błąd synchronizacji przypisania:', error);
+    console.error('❌ Błąd przypisania zlecenia:', error);
     res.status(500).json({
       success: false,
-      error: 'Database error during assignment sync',
+      error: 'Database error during order assignment',
       details: error.message
     });
   }
 });
 
-// API Routes
-app.use('/api/technicians', require('./routes/technicians'));
-app.use('/api/desktop/orders', require('./routes/orders'));
+// Health check root endpoint
+app.get('/', (req, res) => {
+  res.json({
+    service: 'Serwis API',
+    message: '🚀 Serwis API - Global Access Ready!',
+    timestamp: new Date().toISOString(),
+    status: 'operational',
+    endpoints: [
+      'GET /api/health - Health check',
+      'GET /api/technicians - Get technicians list', 
+      'GET /api/desktop/orders/:userId - Get orders for technician',
+      'PUT /api/desktop/orders/:orderId/status - Update order status',
+      'POST /api/sync/orders - Sync order from desktop to Railway',
+      'PUT /api/sync/assign - Sync order assignment from desktop to Railway'
+    ]
+  });
+});
 
 // Mobile App SPA - serve index.html for all non-API routes
 app.get('*', (req, res) => {
@@ -282,8 +256,7 @@ app.get('*', (req, res) => {
   if (req.path.startsWith('/api/')) {
     return res.status(404).json({
       error: 'API endpoint not found',
-      path: req.path,
-      availableEndpoints: ['/api/health', '/api/technicians', '/api/desktop/orders/:userId']
+      path: req.path
     });
   }
   
@@ -309,24 +282,13 @@ async function startServer() {
     await db.testConnection();
     console.log('✅ Database connected successfully');
     
-    // Run database migrations for Railway
-    console.log('🔧 Running database migrations...');
-    try {
-      const migrate = require('./database/migrate');
-      await migrate.main();
-      console.log('✅ Database migrations completed');
-    } catch (migrationError) {
-      console.error('⚠️ Migration error (continuing):', migrationError.message);
-    }
-    
     // Start server
     app.listen(PORT, '0.0.0.0', () => {
       console.log('🚀 ========================================');
-      console.log(`🌍 Serwis Mobile API running on port ${PORT}`);
-      console.log(`📱 Railway URL: https://web-production-310c4.up.railway.app`);
-      console.log(`🏥 Health check: https://web-production-310c4.up.railway.app/api/health`);
-      console.log(`👨‍🔧 Technicians: https://web-production-310c4.up.railway.app/api/technicians`);
-      console.log(`📱 Mobile App: https://web-production-310c4.up.railway.app/`);
+      console.log(`🌍 Serwis API running on port ${PORT}`);
+      console.log(`📱 Global access: https://your-app.railway.app`);
+      console.log(`🏥 Health check: https://your-app.railway.app/api/health`);
+      console.log(`👨‍🔧 Technicians: https://your-app.railway.app/api/technicians`);
       console.log('🚀 ========================================');
     });
     

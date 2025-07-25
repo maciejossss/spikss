@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Serwis Mobilny</title>
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    <!-- Service Worker -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(registration => {
+                        console.log('📱 SW zarejestrowany:', registration);
+                    })
+                    .catch(registrationError => {
+                        console.log('📱 SW błąd rejestracji:', registrationError);
+                    });
+            });
+        }
+    </script>
+    <meta name="theme-color" content="#2563eb">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Serwis Mobilny">
+    
+    <!-- CSS -->
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8fafc;
+            color: #1e293b;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #2563eb, #3b82f6);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            border-radius: 16px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+        }
+        
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e2e8f0;
+        }
+        
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 12px 16px;
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin: 8px 0;
+            transition: background 0.2s;
+        }
+        
+        .btn:hover {
+            background: #1d4ed8;
+        }
+        
+        .btn-success {
+            background: #059669;
+        }
+        
+        .btn-success:hover {
+            background: #047857;
+        }
+        
+        .btn-danger {
+            background: #dc2626;
+        }
+        
+        .btn-danger:hover {
+            background: #b91c1c;
+        }
+        
+        .status {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .status-new {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+        
+        .status-in_progress {
+            background: #fef3c7;
+            color: #d97706;
+        }
+        
+        .status-completed {
+            background: #d1fae5;
+            color: #059669;
+        }
+        
+        .priority-high {
+            border-left: 4px solid #dc2626;
+        }
+        
+        .priority-medium {
+            border-left: 4px solid #d97706;
+        }
+        
+        .priority-low {
+            border-left: 4px solid #059669;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+        }
+        
+        .error {
+            background: #fef2f2;
+            color: #dc2626;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 16px 0;
+            border: 1px solid #fecaca;
+        }
+        
+        .connection-status {
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+        
+        .connected {
+            background: #d1fae5;
+            color: #059669;
+            border: 1px solid #a7f3d0;
+        }
+        
+        .disconnected {
+            background: #fef2f2;
+            color: #dc2626;
+            border: 1px solid #fecaca;
+        }
+        
+        .timer {
+            background: #1e293b;
+            color: white;
+            padding: 16px;
+            border-radius: 12px;
+            text-align: center;
+            margin: 16px 0;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        h1, h2, h3 {
+            margin-bottom: 12px;
+        }
+        
+        p {
+            margin-bottom: 8px;
+        }
+        
+        .order-item {
+            margin-bottom: 16px;
+            transition: transform 0.2s;
+        }
+        
+        .order-item:hover {
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🔧 Serwis Mobilny</h1>
+            <p>Aplikacja dla techników</p>
+        </div>
+        
+        <!-- Connection Status -->
+        <div id="connectionStatus" class="connection-status">
+            Sprawdzanie połączenia...
+        </div>
+        
+        <!-- Login Screen -->
+        <div id="loginScreen" class="card">
+            <h2>Logowanie Technika</h2>
+            <p>Wybierz swojego użytkownika:</p>
+            <div id="techniciansList"></div>
+            <button class="btn" onclick="testConnection()">🔄 Sprawdź połączenie</button>
+        </div>
+        
+        <!-- Main App -->
+        <div id="mainApp" class="hidden">
+            <!-- Current Work Timer -->
+            <div id="workTimer" class="timer hidden">
+                <div>⏱️ Czas pracy</div>
+                <div id="timerDisplay">00:00:00</div>
+                <div id="currentOrderTitle"></div>
+            </div>
+            
+            <!-- Orders List -->
+            <div class="card">
+                <h2>📋 Moje zlecenia</h2>
+                <div id="ordersList">
+                    <div class="loading">Ładowanie zleceń...</div>
+                </div>
+                <button class="btn" onclick="refreshOrders()">🔄 Odśwież</button>
+            </div>
+            
+            <!-- Logout -->
+            <button class="btn btn-danger" onclick="logout()">🚪 Wyloguj</button>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script>
+        // ☁️ CENTRALNA BAZA DANYCH - Mobile app ZAWSZE używa Railway
+        const API_CONFIG = {
+            base: 'https://web-production-fc58d.up.railway.app/api',
+            environment: 'railway'
+        };
+        
+        console.log('☁️ Mobile app używa centralnej bazy Railway');
+        console.log('📱 Wszystkie telefony łączą się z tym samym API');
+        console.log('🌍 Niezależnie od lokalizacji desktop aplikacji');
+        
+        // Backward compatibility
+        const API_BASE = API_CONFIG.base;
+        
+        let currentTechnician = null;
+        let currentOrders = [];
+        let workTimer = null;
+        let workStartTime = null;
+        
+        // Stan aplikacji
+        const app = {
+            isConnected: false,
+            currentOrder: null
+        };
+        
+        // Inicjalizacja aplikacji
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('📱 Aplikacja mobilna uruchomiona');
+            checkConnection();
+            loadTechnicians();
+            
+            // Sprawdź czy jest zapisany technik
+            const savedTechnicianId = localStorage.getItem('technicianId');
+            if (savedTechnicianId) {
+                currentTechnician = { id: parseInt(savedTechnicianId) };
+                showMainApp();
+                loadOrders();
+            }
+        });
+        
+        // Sprawdzenie połączenia z API
+        async function checkConnection() {
+            try {
+                const response = await fetch(`${API_BASE}/health`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    app.isConnected = true;
+                    updateConnectionStatus(true, 'Połączono z serwerem');
+                    console.log('✅ Połączenie OK:', data);
+                } else {
+                    throw new Error('Błąd serwera');
+                }
+            } catch (error) {
+                app.isConnected = false;
+                updateConnectionStatus(false, 'Brak połączenia z serwerem');
+                console.error('❌ Błąd połączenia:', error);
+            }
+        }
+        
+        // Aktualizacja statusu połączenia
+        function updateConnectionStatus(connected, message) {
+            const statusEl = document.getElementById('connectionStatus');
+            statusEl.textContent = message;
+            statusEl.className = `connection-status ${connected ? 'connected' : 'disconnected'}`;
+        }
+        
+        // Ładowanie listy techników
+        async function loadTechnicians() {
+            try {
+                const response = await fetch(`${API_BASE}/technicians`);
+                const technicians = await response.json();
+                
+                const listEl = document.getElementById('techniciansList');
+                listEl.innerHTML = '';
+                
+                technicians.forEach(tech => {
+                    const btn = document.createElement('button');
+                    btn.className = 'btn';
+                    btn.textContent = `👤 ${tech.full_name}`;
+                    btn.onclick = () => loginAsTechnician(tech);
+                    listEl.appendChild(btn);
+                });
+                
+                console.log('👥 Załadowano techników:', technicians);
+            } catch (error) {
+                console.error('❌ Błąd ładowania techników:', error);
+                showError('Nie można załadować listy techników');
+            }
+        }
+        
+        // Logowanie jako technik
+        function loginAsTechnician(technician) {
+            currentTechnician = technician;
+            localStorage.setItem('technicianId', technician.id);
+            showMainApp();
+            loadOrders();
+            console.log('🔑 Zalogowano jako:', technician.full_name);
+        }
+        
+        // Wylogowanie
+        function logout() {
+            currentTechnician = null;
+            localStorage.removeItem('technicianId');
+            stopWorkTimer();
+            showLoginScreen();
+            console.log('🚪 Wylogowano');
+        }
+        
+        // Przełączenie na główny ekran
+        function showMainApp() {
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('mainApp').classList.remove('hidden');
+        }
+        
+        // Przełączenie na ekran logowania
+        function showLoginScreen() {
+            document.getElementById('loginScreen').classList.remove('hidden');
+            document.getElementById('mainApp').classList.add('hidden');
+        }
+        
+        // Ładowanie zleceń
+        async function loadOrders() {
+            if (!currentTechnician) return;
+            
+            try {
+                const response = await fetch(`${API_BASE}/desktop/orders/${currentTechnician.id}`);
+                const orders = await response.json();
+                
+                currentOrders = orders;
+                renderOrders(orders);
+                console.log(`📋 Załadowano ${orders.length} zleceń`);
+            } catch (error) {
+                console.error('❌ Błąd ładowania zleceń:', error);
+                showError('Nie można załadować zleceń');
+            }
+        }
+        
+        // Renderowanie listy zleceń
+        function renderOrders(orders) {
+            const listEl = document.getElementById('ordersList');
+            
+            if (orders.length === 0) {
+                listEl.innerHTML = '<p style="text-align: center; color: #64748b;">Brak zleceń do wykonania</p>';
+                return;
+            }
+            
+            listEl.innerHTML = orders.map(order => `
+                <div class="order-item card priority-${order.priority || 'medium'}">
+                    <h3>${order.title}</h3>
+                    <p><strong>Klient:</strong> ${order.client_name}</p>
+                    <p><strong>Adres:</strong> ${order.address || 'Brak adresu'}</p>
+                    <p><strong>Priorytet:</strong> ${order.priority || 'medium'}</p>
+                    <div style="margin: 12px 0;">
+                        <span class="status status-${order.status}">${getStatusLabel(order.status)}</span>
+                    </div>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        ${order.status === 'new' ? 
+                            `<button class="btn btn-success" onclick="startWork(${order.id}, '${order.title}')">▶️ Rozpocznij</button>` :
+                            order.status === 'in_progress' ? 
+                                `<button class="btn btn-danger" onclick="completeWork(${order.id})">✅ Zakończ</button>` : ''
+                        }
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // Rozpoczęcie pracy
+        async function startWork(orderId, orderTitle) {
+            try {
+                const response = await fetch(`${API_BASE}/desktop/orders/${orderId}/status`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        status: 'in_progress'
+                    })
+                });
+                
+                if (response.ok) {
+                    app.currentOrder = { id: orderId, title: orderTitle };
+                    startWorkTimer(orderTitle);
+                    refreshOrders();
+                    console.log('🚀 Rozpoczęto pracę nad zleceniem:', orderId);
+                } else {
+                    throw new Error('Błąd serwera');
+                }
+            } catch (error) {
+                console.error('❌ Błąd rozpoczynania pracy:', error);
+                showError('Nie można rozpocząć pracy');
+            }
+        }
+        
+        // Zakończenie pracy
+        async function completeWork(orderId) {
+            const notes = prompt('Dodaj notatki z wykonanej pracy (opcjonalnie):') || '';
+            
+            try {
+                const response = await fetch(`${API_BASE}/desktop/orders/${orderId}/status`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        status: 'completed',
+                        notes: notes,
+                        completedCategories: ['A1', 'B1'], // Przykładowe kategorie
+                        photos: [] // Można dodać obsługę zdjęć
+                    })
+                });
+                
+                if (response.ok) {
+                    stopWorkTimer();
+                    app.currentOrder = null;
+                    refreshOrders();
+                    alert('✅ Zlecenie zostało zakończone!');
+                    console.log('✅ Zakończono pracę nad zleceniem:', orderId);
+                } else {
+                    throw new Error('Błąd serwera');
+                }
+            } catch (error) {
+                console.error('❌ Błąd kończenia pracy:', error);
+                showError('Nie można zakończyć pracy');
+            }
+        }
+        
+        // Timer pracy
+        function startWorkTimer(orderTitle) {
+            workStartTime = new Date();
+            document.getElementById('currentOrderTitle').textContent = orderTitle;
+            document.getElementById('workTimer').classList.remove('hidden');
+            
+            workTimer = setInterval(updateTimer, 1000);
+        }
+        
+        function stopWorkTimer() {
+            if (workTimer) {
+                clearInterval(workTimer);
+                workTimer = null;
+                workStartTime = null;
+                document.getElementById('workTimer').classList.add('hidden');
+            }
+        }
+        
+        function updateTimer() {
+            if (!workStartTime) return;
+            
+            const now = new Date();
+            const diff = now - workStartTime;
+            const hours = Math.floor(diff / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+            
+            const display = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            document.getElementById('timerDisplay').textContent = display;
+        }
+        
+        // Odświeżenie zleceń
+        function refreshOrders() {
+            loadOrders();
+        }
+        
+        // Test połączenia
+        function testConnection() {
+            checkConnection();
+        }
+        
+        // Etykiety statusów
+        function getStatusLabel(status) {
+            const labels = {
+                'new': 'Nowe',
+                'in_progress': 'W trakcie',
+                'completed': 'Zakończone'
+            };
+            return labels[status] || status;
+        }
+        
+        // Wyświetlenie błędu
+        function showError(message) {
+            const errorEl = document.createElement('div');
+            errorEl.className = 'error';
+            errorEl.textContent = message;
+            
+            const container = document.querySelector('.container');
+            container.insertBefore(errorEl, container.firstChild);
+            
+            setTimeout(() => {
+                errorEl.remove();
+            }, 5000);
+        }
+        
+        // Automatyczne odświeżanie co 30 sekund
+        setInterval(() => {
+            if (currentTechnician && app.isConnected) {
+                checkConnection();
+                loadOrders();
+            }
+        }, 30000);
+        
+    </script>
+</body>
+</html> 

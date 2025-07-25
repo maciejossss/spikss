@@ -1,0 +1,135 @@
+📱 INSTRUKCJA INSTALACJI APLIKACJI MOBILNEJ STANDALONE
+
+===========================================================
+🎉 GOTOWA APLIKACJA DO POBRANIA!
+===========================================================
+
+📁 PLIK: serwis-mobilny.html
+📦 ROZMIAR: ~30KB (jeden plik!)
+🌐 TRYB: Offline - nie potrzebuje internetu
+💾 DANE: Przechowywane lokalnie w telefonie
+
+===========================================================
+JAK ZAINSTALOWAĆ:
+===========================================================
+
+OPCJA A - WYSYŁKA EMAILEM:
+1. Wyślij plik "serwis-mobilny.html" na email telefonu
+2. Pobierz na telefon
+3. Otwórz w przeglądarce (Chrome/Safari)
+4. Dodaj do ekranu głównego (jak niżej)
+
+OPCJA B - PRZEKOPIUJ PRZEZ USB:
+1. Podłącz telefon do komputera
+2. Skopiuj "serwis-mobilny.html" do folderu Downloads
+3. Otwórz w przeglądarce telefonu
+4. Dodaj do ekranu głównego
+
+===========================================================
+DODAWANIE DO EKRANU GŁÓWNEGO:
+===========================================================
+
+📱 ANDROID (Chrome):
+1. Otwórz plik w Chrome
+2. Menu (⋮) → "Dodaj do ekranu głównego"
+3. Potwierdź
+
+🍎 iPhone (Safari):
+1. Otwórz plik w Safari
+2. Przycisk "Udostępnij" (⬆️)
+3. "Dodaj do ekranu głównego"
+4. Potwierdź
+
+===========================================================
+FUNKCJE APLIKACJI:
+===========================================================
+
+✅ Zarządzanie zleceniami (dodawanie, edycja, usuwanie)
+✅ Timer pracy technika
+✅ 3 statusy: Nowe → W trakcie → Zakończone
+✅ Eksport/Import danych (JSON)
+✅ Praca offline (bez internetu)
+✅ Opcja połączenia z serwerem (gdy sieć działa)
+✅ Responsywny design (dostosowany do telefonu)
+
+===========================================================
+DANE TESTOWE:
+===========================================================
+
+👤 TECHNICY:
+- Jan Kowalski
+- Maria Nowak  
+- Piotr Wiśniewski
+
+📋 PRZYKŁADOWE ZLECENIA:
+- Przegląd roczny kotła Vaillant
+- Naprawa awaryjna - brak c.w.u.
+- Przegląd pompy ciepła
+
+===========================================================
+JAK UŻYWAĆ:
+===========================================================
+
+1. Otwórz aplikację
+2. Wybierz technika z listy
+3. Kliknij "🔑 Zaloguj się"
+4. Zobacz swoje zlecenia
+5. Kliknij "▶️ Rozpocznij" przy zleceniu
+6. Timer zacznie liczyć czas
+7. Kliknij "✅ Zakończ" gdy skończysz
+8. Dodaj notatki z pracy
+
+===========================================================
+ZARZĄDZANIE DANYMI:
+===========================================================
+
+📤 EKSPORT:
+- Menu → "📤 Eksportuj dane"
+- Zapisze plik JSON z wszystkimi zleceniami
+
+📥 IMPORT:
+- Menu → "📥 Importuj dane"  
+- Wczyta dane z pliku JSON
+
+🌐 SYNCHRONIZACJA:
+- Kliknij "🌐 Połącz z serwerem"
+- Wprowadź adres: http://192.168.1.27:5174
+- Testuj połączenie
+
+===========================================================
+ZALETY WERSJI STANDALONE:
+===========================================================
+
+✅ Działa bez internetu
+✅ Jeden plik - łatwa instalacja
+✅ Nie trzeba konfigurować sieci
+✅ Dane bezpieczne lokalnie
+✅ Możliwość późniejszej synchronizacji
+✅ Działa na każdym telefonie
+✅ Nie wymaga uprawnień specjalnych
+
+===========================================================
+WSPARCIE TECHNICZNE:
+===========================================================
+
+❓ Problem z instalacją?
+- Sprawdź czy używasz Chrome (Android) lub Safari (iPhone)
+- Spróbuj odświeżyć stronę
+
+❓ Nie widzisz zleceń?
+- Kliknij "➕ Dodaj" aby utworzyć nowe
+- Albo "📥 Importuj dane" jeśli masz backup
+
+❓ Chcesz połączyć z serwerem?
+- Sprawdź czy komputer i telefon w tej samej sieci WiFi
+- Użyj opcji "🌐 Połącz z serwerem"
+
+===========================================================
+🚀 GOTOWE DO UŻYCIA!
+===========================================================
+
+Aplikacja jest w pełni funkcjonalna i gotowa do pracy!
+Po zainstalowaniu będziesz miał pełny system serwisowy 
+w telefonie, działający offline.
+
+Miłego użytkowania! 📱⚡ 

@@ -344,6 +344,76 @@ app.post('/api/sync/clients', async (req, res) => {
   }
 });
 
+// 📦 SYNC ENDPOINT: Synchronizuj urządzenia z desktop app
+app.post('/api/sync/devices', async (req, res) => {
+  try {
+    const devices = req.body.devices || [];
+    
+    console.log(`📦 Otrzymano ${devices.length} urządzeń z desktop app`);
+    
+    if (!Array.isArray(devices) || devices.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'No devices data provided'
+      });
+    }
+    
+    let syncedCount = 0;
+    
+    for (const device of devices) {
+      if (!device.id || !device.name) {
+        continue; // Pomiń niepełne dane
+      }
+      
+      const query = `
+        INSERT INTO devices (
+          id, client_id, name, manufacturer, model, serial_number,
+          production_year, power_rating, fuel_type, installation_date,
+          last_service_date, next_service_date, warranty_end_date,
+          technical_data, notes, is_active, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+        ON CONFLICT (id) 
+        DO UPDATE SET
+          client_id = EXCLUDED.client_id,
+          name = EXCLUDED.name,
+          manufacturer = EXCLUDED.manufacturer,
+          model = EXCLUDED.model,
+          serial_number = EXCLUDED.serial_number,
+          updated_at = EXCLUDED.updated_at
+      `;
+      
+      const now = new Date().toISOString();
+      
+      await db.query(query, [
+        device.id, device.client_id, device.name, device.manufacturer || null,
+        device.model || null, device.serial_number || null, device.production_year || null,
+        device.power_rating || null, device.fuel_type || null, device.installation_date || null,
+        device.last_service_date || null, device.next_service_date || null, device.warranty_end_date || null,
+        device.technical_data || null, device.notes || null, device.is_active !== undefined ? device.is_active : true,
+        device.created_at || now, now
+      ]);
+      
+      syncedCount++;
+    }
+    
+    console.log(`✅ Zsynchronizowano ${syncedCount} urządzeń do Railway PostgreSQL`);
+    
+    res.json({
+      success: true,
+      message: `${syncedCount} devices synced to Railway PostgreSQL`,
+      syncedCount
+    });
+    
+  } catch (error) {
+    console.error('❌ Błąd synchronizacji urządzeń:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Database error during device sync',
+      details: error.message
+    });
+  }
+});
+
 // API Routes
 app.use('/api/technicians', require('./routes/technicians'));
 app.use('/api/desktop/orders', require('./routes/orders'));

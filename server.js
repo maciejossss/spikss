@@ -25,7 +25,7 @@ app.use(helmet({
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minute
-  max: 200, // limit each IP to 200 requests per windowMs
+  max: 100, // limit each IP to 100 requests per windowMs
   message: {
     error: 'Too many requests from this IP, please try again later'
   }
@@ -68,11 +68,51 @@ app.use(express.static('public', {
 }));
 
 // ===== ROUTES =====
-app.use('/api/health', healthRoutes);
-app.use('/api/technicians', techniciansRoutes);
-app.use('/api/desktop/orders', ordersRoutes);
 
-// === SYNC ENDPOINTS FOR DESKTOP ===
+// Health check
+app.get('/api/health', (req, res) => {
+  res.json({
+    message: '🚀 Serwis Mobile API - Railway Deployment Ready!',
+    status: 'operational',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
+    version: '1.0.0'
+  });
+});
+
+// Test database connection
+app.get('/api/health/db', async (req, res) => {
+  try {
+    const start = Date.now();
+    await db.testConnection();
+    const responseTime = Date.now() - start;
+    
+    res.json({
+      status: 'OK',
+      timestamp: new Date().toISOString(),
+      database: {
+        status: 'connected',
+        responseTime: `${responseTime}ms`,
+        pool: {
+          totalCount: db.pool?.totalCount || 0,
+          idleCount: db.pool?.idleCount || 0,
+          waitingCount: db.pool?.waitingCount || 0
+        }
+      },
+      environment: process.env.NODE_ENV || 'development',
+      version: '1.0.0'
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'ERROR',
+      timestamp: new Date().toISOString(),
+      database: {
+        status: 'disconnected',
+        error: error.message
+      }
+    });
+  }
+});
 
 // 🚀 SYNC ENDPOINT: Odbieraj zlecenia z desktop app
 app.post('/api/sync/orders', async (req, res) => {
@@ -209,7 +249,7 @@ app.put('/api/sync/assign', async (req, res) => {
     
     const updatedOrder = result.rows[0];
     
-    console.log(`✅ Przypisano zlecenie ${updatedOrder.order_number} do technika ${technicianId}`);
+    console.log(`✅ Zlecenie ${updatedOrder.order_number} przypisane do technika ${technicianId} w Railway PostgreSQL`);
     
     res.json({
       success: true,
@@ -223,32 +263,90 @@ app.put('/api/sync/assign', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Błąd przypisania zlecenia:', error);
+    console.error('❌ Błąd synchronizacji przypisania:', error);
     res.status(500).json({
       success: false,
-      error: 'Database error during order assignment',
+      error: 'Database error during assignment sync',
       details: error.message
     });
   }
 });
 
-// Health check root endpoint
-app.get('/', (req, res) => {
-  res.json({
-    service: 'Serwis API',
-    message: '🚀 Serwis API - Global Access Ready!',
-    timestamp: new Date().toISOString(),
-    status: 'operational',
-    endpoints: [
-      'GET /api/health - Health check',
-      'GET /api/technicians - Get technicians list', 
-      'GET /api/desktop/orders/:userId - Get orders for technician',
-      'PUT /api/desktop/orders/:orderId/status - Update order status',
-      'POST /api/sync/orders - Sync order from desktop to Railway',
-      'PUT /api/sync/assign - Sync order assignment from desktop to Railway'
-    ]
-  });
+// === SYNC ENDPOINTS FOR DESKTOP ===
+
+// 🚀 SYNC ENDPOINT: Synchronizuj klientów z desktop app
+app.post('/api/sync/clients', async (req, res) => {
+  try {
+    const clients = req.body.clients || [];
+    
+    console.log(`📤 Otrzymano ${clients.length} klientów z desktop app`);
+    
+    if (!Array.isArray(clients) || clients.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'No clients data provided'
+      });
+    }
+    
+    let syncedCount = 0;
+    
+    for (const client of clients) {
+      if (!client.id || (!client.first_name && !client.company_name)) {
+        continue; // Pomiń niepełne dane
+      }
+      
+      const query = `
+        INSERT INTO clients (
+          id, type, first_name, last_name, company_name, email, phone, 
+          address_street, address_city, address_postal_code, address_country,
+          nip, regon, is_active, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+        ON CONFLICT (id) 
+        DO UPDATE SET
+          type = EXCLUDED.type,
+          first_name = EXCLUDED.first_name,
+          last_name = EXCLUDED.last_name,
+          company_name = EXCLUDED.company_name,
+          email = EXCLUDED.email,
+          phone = EXCLUDED.phone,
+          updated_at = EXCLUDED.updated_at
+      `;
+      
+      const now = new Date().toISOString();
+      
+      await db.query(query, [
+        client.id, client.type || 'individual', client.first_name || null, 
+        client.last_name || null, client.company_name || null, client.email || null,
+        client.phone || null, client.address_street || null, client.address_city || null,
+        client.address_postal_code || null, client.address_country || 'PL',
+        client.nip || null, client.regon || null, client.is_active !== undefined ? client.is_active : true,
+        client.created_at || now, now
+      ]);
+      
+      syncedCount++;
+    }
+    
+    console.log(`✅ Zsynchronizowano ${syncedCount} klientów do Railway PostgreSQL`);
+    
+    res.json({
+      success: true,
+      message: `${syncedCount} clients synced to Railway PostgreSQL`,
+      syncedCount
+    });
+    
+  } catch (error) {
+    console.error('❌ Błąd synchronizacji klientów:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Database error during client sync',
+      details: error.message
+    });
+  }
 });
+
+// API Routes
+app.use('/api/technicians', require('./routes/technicians'));
+app.use('/api/desktop/orders', require('./routes/orders'));
 
 // Mobile App SPA - serve index.html for all non-API routes
 app.get('*', (req, res) => {
@@ -256,7 +354,8 @@ app.get('*', (req, res) => {
   if (req.path.startsWith('/api/')) {
     return res.status(404).json({
       error: 'API endpoint not found',
-      path: req.path
+      path: req.path,
+      availableEndpoints: ['/api/health', '/api/technicians', '/api/desktop/orders/:userId']
     });
   }
   
@@ -282,13 +381,24 @@ async function startServer() {
     await db.testConnection();
     console.log('✅ Database connected successfully');
     
+    // Run database migrations for Railway
+    console.log('🔧 Running database migrations...');
+    try {
+      const migrate = require('./database/migrate');
+      await migrate.main();
+      console.log('✅ Database migrations completed');
+    } catch (migrationError) {
+      console.error('⚠️ Migration error (continuing):', migrationError.message);
+    }
+    
     // Start server
     app.listen(PORT, '0.0.0.0', () => {
       console.log('🚀 ========================================');
-      console.log(`🌍 Serwis API running on port ${PORT}`);
-      console.log(`📱 Global access: https://your-app.railway.app`);
-      console.log(`🏥 Health check: https://your-app.railway.app/api/health`);
-      console.log(`👨‍🔧 Technicians: https://your-app.railway.app/api/technicians`);
+      console.log(`🌍 Serwis Mobile API running on port ${PORT}`);
+      console.log(`📱 Railway URL: https://web-production-310c4.up.railway.app`);
+      console.log(`🏥 Health check: https://web-production-310c4.up.railway.app/api/health`);
+      console.log(`👨‍🔧 Technicians: https://web-production-310c4.up.railway.app/api/technicians`);
+      console.log(`📱 Mobile App: https://web-production-310c4.up.railway.app/`);
       console.log('🚀 ========================================');
     });
     

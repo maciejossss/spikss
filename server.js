@@ -272,6 +272,78 @@ app.put('/api/sync/assign', async (req, res) => {
   }
 });
 
+// === SYNC ENDPOINTS FOR DESKTOP ===
+
+// 🚀 SYNC ENDPOINT: Synchronizuj klientów z desktop app
+app.post('/api/sync/clients', async (req, res) => {
+  try {
+    const clients = req.body.clients || [];
+    
+    console.log(`📤 Otrzymano ${clients.length} klientów z desktop app`);
+    
+    if (!Array.isArray(clients) || clients.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'No clients data provided'
+      });
+    }
+    
+    let syncedCount = 0;
+    
+    for (const client of clients) {
+      if (!client.id || (!client.first_name && !client.company_name)) {
+        continue; // Pomiń niepełne dane
+      }
+      
+      const query = `
+        INSERT INTO clients (
+          id, type, first_name, last_name, company_name, email, phone, 
+          address_street, address_city, address_postal_code, address_country,
+          nip, regon, is_active, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+        ON CONFLICT (id) 
+        DO UPDATE SET
+          type = EXCLUDED.type,
+          first_name = EXCLUDED.first_name,
+          last_name = EXCLUDED.last_name,
+          company_name = EXCLUDED.company_name,
+          email = EXCLUDED.email,
+          phone = EXCLUDED.phone,
+          updated_at = EXCLUDED.updated_at
+      `;
+      
+      const now = new Date().toISOString();
+      
+      await db.query(query, [
+        client.id, client.type || 'individual', client.first_name || null, 
+        client.last_name || null, client.company_name || null, client.email || null,
+        client.phone || null, client.address_street || null, client.address_city || null,
+        client.address_postal_code || null, client.address_country || 'PL',
+        client.nip || null, client.regon || null, client.is_active !== undefined ? client.is_active : true,
+        client.created_at || now, now
+      ]);
+      
+      syncedCount++;
+    }
+    
+    console.log(`✅ Zsynchronizowano ${syncedCount} klientów do Railway PostgreSQL`);
+    
+    res.json({
+      success: true,
+      message: `${syncedCount} clients synced to Railway PostgreSQL`,
+      syncedCount
+    });
+    
+  } catch (error) {
+    console.error('❌ Błąd synchronizacji klientów:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Database error during client sync',
+      details: error.message
+    });
+  }
+});
+
 // API Routes
 app.use('/api/technicians', require('./routes/technicians'));
 app.use('/api/desktop/orders', require('./routes/orders'));

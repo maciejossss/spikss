@@ -152,6 +152,37 @@ app.post('/api/sync/orders', async (req, res) => {
       updated_at: now
     };
     
+        // Zabezpieczenie foreign keys - ustaw na NULL jeśli nie istnieją
+    let safeClientId = null;
+    if (insertData.client_id) {
+      try {
+        const clientCheck = await db.query('SELECT id FROM clients WHERE id = $1', [insertData.client_id]);
+        safeClientId = clientCheck.rows.length > 0 ? insertData.client_id : null;
+      } catch (e) {
+        console.warn(`⚠️ Klient ${insertData.client_id} nie istnieje w Railway, ustawiam NULL`);
+      }
+    }
+    
+    let safeDeviceId = null;
+    if (insertData.device_id) {
+      try {
+        const deviceCheck = await db.query('SELECT id FROM devices WHERE id = $1', [insertData.device_id]);
+        safeDeviceId = deviceCheck.rows.length > 0 ? insertData.device_id : null;
+      } catch (e) {
+        console.warn(`⚠️ Urządzenie ${insertData.device_id} nie istnieje w Railway, ustawiam NULL`);
+      }
+    }
+    
+    let safeUserId = null;
+    if (insertData.assigned_user_id) {
+      try {
+        const userCheck = await db.query('SELECT id FROM users WHERE id = $1', [insertData.assigned_user_id]);
+        safeUserId = userCheck.rows.length > 0 ? insertData.assigned_user_id : null;
+      } catch (e) {
+        console.warn(`⚠️ Użytkownik ${insertData.assigned_user_id} nie istnieje w Railway, ustawiam NULL`);
+      }
+    }
+
     // Zapisz w PostgreSQL
     const query = `
       INSERT INTO service_orders (
@@ -169,10 +200,10 @@ app.post('/api/sync/orders', async (req, res) => {
         updated_at = EXCLUDED.updated_at
       RETURNING id, order_number, status
     `;
-    
+
     const result = await db.query(query, [
-      insertData.order_number, insertData.client_id, insertData.device_id, 
-      insertData.assigned_user_id, insertData.service_categories, insertData.status,
+      insertData.order_number, safeClientId, safeDeviceId, 
+      safeUserId, insertData.service_categories, insertData.status,
       insertData.priority, insertData.type, insertData.title, insertData.description,
       insertData.scheduled_date, insertData.estimated_hours, insertData.labor_cost,
       insertData.parts_cost, insertData.total_cost, insertData.notes,
@@ -206,22 +237,22 @@ app.post('/api/sync/orders', async (req, res) => {
 // 🚀 SYNC ENDPOINT: Odbieraj przypisania zleceń z desktop app
 app.put('/api/sync/assign', async (req, res) => {
   try {
-    const { orderId, technicianId, notes, status, assignedAt } = req.body;
+    const { orderId, orderNumber, technicianId, notes, status, assignedAt } = req.body;
     
-    console.log(`📤 Otrzymano przypisanie zlecenia ${orderId} do technika ${technicianId}`);
+    console.log(`📤 Otrzymano przypisanie zlecenia ${orderId || orderNumber} do technika ${technicianId}`);
     
     // Walidacja wymaganych pól
-    if (!orderId || !technicianId) {
+    if ((!orderId && !orderNumber) || !technicianId) {
       return res.status(400).json({
         success: false,
-        error: 'Missing required fields: orderId, technicianId'
+        error: 'Missing required fields: orderId/orderNumber, technicianId'
       });
     }
     
     const now = new Date().toISOString();
     
-    // Zaktualizuj zlecenie w PostgreSQL
-    const query = `
+    // Zaktualizuj zlecenie w PostgreSQL - używaj orderNumber jeśli orderId nie jest dostępne
+    const query = orderId ? `
       UPDATE service_orders 
       SET 
         assigned_user_id = $1,
@@ -230,6 +261,15 @@ app.put('/api/sync/assign', async (req, res) => {
         updated_at = $4
       WHERE id = $5
       RETURNING id, order_number, assigned_user_id, status
+    ` : `
+      UPDATE service_orders 
+      SET 
+        assigned_user_id = $1,
+        status = $2,
+        notes = COALESCE($3, notes),
+        updated_at = $4
+      WHERE order_number = $5
+      RETURNING id, order_number, assigned_user_id, status
     `;
     
     const result = await db.query(query, [
@@ -237,7 +277,7 @@ app.put('/api/sync/assign', async (req, res) => {
       status || 'new',
       notes,
       assignedAt || now,
-      orderId
+      orderId || orderNumber
     ]);
     
     if (result.rows.length === 0) {

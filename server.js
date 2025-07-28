@@ -114,6 +114,28 @@ app.get('/api/health/db', async (req, res) => {
   }
 });
 
+// Manual migration trigger endpoint
+app.post('/api/health/migrate', async (req, res) => {
+  try {
+    console.log('🔧 Manual migration triggered...');
+    const migrate = require('./database/migrate');
+    await migrate.main();
+    
+    res.json({
+      status: 'SUCCESS',
+      message: 'Database migrations completed successfully',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Manual migration failed:', error);
+    res.status(500).json({
+      status: 'ERROR',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // 🚀 SYNC ENDPOINT: Odbieraj zlecenia z desktop app
 app.post('/api/sync/orders', async (req, res) => {
   try {

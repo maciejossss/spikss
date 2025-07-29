@@ -244,6 +244,72 @@ app.post('/api/health/fix-tables', async (req, res) => {
   }
 });
 
+// 🚀 SYNC ENDPOINT: Odbieraj użytkowników/techników z desktop app
+app.post('/api/sync/users', async (req, res) => {
+  try {
+    const users = req.body;
+    console.log(`📤 Otrzymano ${Array.isArray(users) ? users.length : 1} użytkowników do synchronizacji`);
+    
+    if (!Array.isArray(users)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Expected array of users'
+      });
+    }
+    
+    let syncedCount = 0;
+    
+    for (const user of users) {
+      try {
+        // Sprawdź czy użytkownik już istnieje
+        const existingUser = await db.query(
+          'SELECT id FROM users WHERE id = $1',
+          [user.id]
+        );
+        
+        if (existingUser.rows.length > 0) {
+          // Aktualizuj istniejącego użytkownika
+          await db.query(`
+            UPDATE users 
+            SET username = $1, full_name = $2, email = $3, role = $4, updated_at = CURRENT_TIMESTAMP
+            WHERE id = $5
+          `, [user.username, user.full_name, user.email || '', user.role, user.id]);
+          
+          console.log(`♻️ Zaktualizowano użytkownika ${user.full_name} (ID: ${user.id})`);
+        } else {
+          // Dodaj nowego użytkownika z zachowaniem ID z desktop app
+          await db.query(`
+            INSERT INTO users (id, username, full_name, email, role, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+          `, [user.id, user.username, user.full_name, user.email || '', user.role]);
+          
+          console.log(`➕ Dodano użytkownika ${user.full_name} (ID: ${user.id})`);
+        }
+        
+        syncedCount++;
+      } catch (userError) {
+        console.error(`❌ Błąd synchronizacji użytkownika ${user.full_name}:`, userError.message);
+      }
+    }
+    
+    console.log(`✅ Zsynchronizowano ${syncedCount}/${users.length} użytkowników do Railway PostgreSQL`);
+    
+    res.json({
+      success: true,
+      message: `${syncedCount} users synced to Railway PostgreSQL`,
+      syncedCount: syncedCount
+    });
+    
+  } catch (error) {
+    console.error('❌ Błąd synchronizacji użytkowników:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Database error during users sync',
+      details: error.message
+    });
+  }
+});
+
 // 🚀 SYNC ENDPOINT: Odbieraj zlecenia z desktop app
 app.post('/api/sync/orders', async (req, res) => {
   try {
@@ -635,10 +701,10 @@ async function startServer() {
     app.listen(PORT, '0.0.0.0', () => {
       console.log('🚀 ========================================');
       console.log(`🌍 Serwis Mobile API running on port ${PORT}`);
-      console.log(`📱 Railway URL: https://web-production-310c4.up.railway.app`);
-      console.log(`🏥 Health check: https://web-production-310c4.up.railway.app/api/health`);
-      console.log(`👨‍🔧 Technicians: https://web-production-310c4.up.railway.app/api/technicians`);
-      console.log(`📱 Mobile App: https://web-production-310c4.up.railway.app/`);
+        console.log(`📱 Railway URL: https://web-production-fc58d.up.railway.app`);
+  console.log(`🏥 Health check: https://web-production-fc58d.up.railway.app/api/health`);
+  console.log(`👨‍🔧 Technicians: https://web-production-fc58d.up.railway.app/api/technicians`);
+  console.log(`📱 Mobile App: https://web-production-fc58d.up.railway.app/`);
       console.log('🚀 ========================================');
     });
     

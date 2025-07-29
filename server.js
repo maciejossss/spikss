@@ -249,6 +249,7 @@ app.post('/api/sync/users', async (req, res) => {
   try {
     const users = req.body;
     console.log(`📤 Otrzymano ${Array.isArray(users) ? users.length : 1} użytkowników do synchronizacji`);
+    console.log('📋 Dane użytkowników:', JSON.stringify(users, null, 2));
     
     if (!Array.isArray(users)) {
       return res.status(400).json({
@@ -261,11 +262,15 @@ app.post('/api/sync/users', async (req, res) => {
     
     for (const user of users) {
       try {
+        console.log(`🔍 Sprawdzam użytkownika ID: ${user.id}, username: ${user.username}`);
+        
         // Sprawdź czy użytkownik już istnieje
         const existingUser = await db.query(
           'SELECT id FROM users WHERE id = $1',
           [user.id]
         );
+        
+        console.log(`📊 Wynik sprawdzenia: ${existingUser.rows.length} wierszy`);
         
         if (existingUser.rows.length > 0) {
           // Aktualizuj istniejącego użytkownika
@@ -289,6 +294,7 @@ app.post('/api/sync/users', async (req, res) => {
         syncedCount++;
       } catch (userError) {
         console.error(`❌ Błąd synchronizacji użytkownika ${user.full_name}:`, userError.message);
+        console.error(`❌ Szczegóły błędu:`, userError);
       }
     }
     

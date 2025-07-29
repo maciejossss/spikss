@@ -167,6 +167,83 @@ app.get('/api/health/tables', async (req, res) => {
   }
 });
 
+// Fix missing service_orders table endpoint
+app.post('/api/health/fix-tables', async (req, res) => {
+  try {
+    console.log('🔧 Naprawiam brakującą tabelę service_orders...');
+    
+    // Sprawdź czy tabela service_orders już istnieje
+    const checkTable = await db.query(`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public' AND table_name = 'service_orders'
+    `);
+    
+    if (checkTable.rows.length > 0) {
+      console.log('✅ Tabela service_orders już istnieje');
+      return res.json({
+        status: 'SUCCESS',
+        message: 'Table service_orders already exists',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    // Utwórz tabelę service_orders
+    console.log('🏗️ Tworzę tabelę service_orders...');
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS service_orders (
+        id SERIAL PRIMARY KEY,
+        order_number VARCHAR(50) UNIQUE NOT NULL,
+        client_id INTEGER REFERENCES clients(id),
+        device_id INTEGER REFERENCES devices(id),
+        assigned_user_id INTEGER REFERENCES users(id),
+        service_categories TEXT,
+        status VARCHAR(50) DEFAULT 'new',
+        priority VARCHAR(20) DEFAULT 'medium',
+        type VARCHAR(50) DEFAULT 'maintenance',
+        title VARCHAR(255),
+        description TEXT,
+        scheduled_date TIMESTAMP,
+        started_at TIMESTAMP,
+        completed_at TIMESTAMP,
+        estimated_hours DECIMAL(5,2) DEFAULT 0,
+        actual_hours DECIMAL(5,2) DEFAULT 0,
+        labor_cost DECIMAL(10,2) DEFAULT 0,
+        parts_cost DECIMAL(10,2) DEFAULT 0,
+        total_cost DECIMAL(10,2) DEFAULT 0,
+        completed_categories TEXT,
+        work_photos TEXT,
+        completion_notes TEXT,
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    
+    // Utwórz indeksy
+    console.log('📋 Tworzę indeksy...');
+    await db.query('CREATE INDEX IF NOT EXISTS idx_service_orders_assigned_user ON service_orders(assigned_user_id)');
+    await db.query('CREATE INDEX IF NOT EXISTS idx_service_orders_status ON service_orders(status)');
+    await db.query('CREATE INDEX IF NOT EXISTS idx_service_orders_client ON service_orders(client_id)');
+    
+    console.log('✅ Tabela service_orders utworzona pomyślnie!');
+    
+    res.json({
+      status: 'SUCCESS',
+      message: 'Table service_orders created successfully with indexes',
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Błąd podczas tworzenia tabeli service_orders:', error);
+    res.status(500).json({
+      status: 'ERROR',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // 🚀 SYNC ENDPOINT: Odbieraj zlecenia z desktop app
 app.post('/api/sync/orders', async (req, res) => {
   try {

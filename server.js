@@ -244,6 +244,16 @@ app.post('/api/health/fix-tables', async (req, res) => {
   }
 });
 
+// DEBUG: Zwróć wszystkich użytkowników z bazy
+app.get('/api/debug/all-users', async (req, res) => {
+  try {
+    const result = await db.query('SELECT * FROM users');
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // 🚀 SYNC ENDPOINT: Odbieraj użytkowników/techników z desktop app
 app.post('/api/sync/users', async (req, res) => {
   try {
@@ -284,9 +294,9 @@ app.post('/api/sync/users', async (req, res) => {
         } else {
           // Dodaj nowego użytkownika z zachowaniem ID z desktop app
           await db.query(`
-            INSERT INTO users (id, username, full_name, email, role, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-          `, [user.id, user.username, user.full_name, user.email || '', user.role]);
+            INSERT INTO users (id, username, full_name, email, role, password_hash, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+          `, [user.id, user.username, user.full_name, user.email || '', user.role, 'default_password_hash']);
           
           console.log(`➕ Dodano użytkownika ${user.full_name} (ID: ${user.id})`);
         }

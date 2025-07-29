@@ -136,6 +136,37 @@ app.post('/api/health/migrate', async (req, res) => {
   }
 });
 
+// Check database tables endpoint
+app.get('/api/health/tables', async (req, res) => {
+  try {
+    const result = await db.query(`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public' 
+      ORDER BY table_name
+    `);
+    
+    const tables = result.rows.map(row => row.table_name);
+    const expectedTables = ['users', 'clients', 'devices', 'service_orders', 'spare_parts'];
+    const missingTables = expectedTables.filter(table => !tables.includes(table));
+    
+    res.json({
+      status: 'OK',
+      timestamp: new Date().toISOString(),
+      tables: tables,
+      expectedTables: expectedTables,
+      missingTables: missingTables,
+      allTablesExist: missingTables.length === 0
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'ERROR',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // 🚀 SYNC ENDPOINT: Odbieraj zlecenia z desktop app
 app.post('/api/sync/orders', async (req, res) => {
   try {

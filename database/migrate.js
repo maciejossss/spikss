@@ -1,13 +1,10 @@
 require('dotenv').config();
 const sqlite3 = require('sqlite3').verbose();
-const { Pool } = require('pg');
 const path = require('path');
 
-// PostgreSQL connection (Railway)
-const pgPool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-});
+// Use the same database connection as server.js
+const db = require('./connection');
+const pgPool = db.pool;
 
 // SQLite connection (local) - graceful handling if file doesn't exist
 const sqliteDbPath = path.join(process.env.APPDATA || process.env.HOME, 'serwis-desktop', 'serwis.db');
@@ -229,12 +226,14 @@ async function createTables() {
     )`
   ];
   
-  for (const query of queries) {
+  for (let i = 0; i < queries.length; i++) {
+    const query = queries[i];
     try {
       await pgPool.query(query);
-      console.log('✅ Table created successfully');
+      console.log(`✅ Table ${i + 1}/${queries.length} created successfully`);
     } catch (error) {
-      console.error('❌ Error creating table:', error.message);
+      console.error(`❌ Error creating table ${i + 1}/${queries.length}:`, error.message);
+      console.error('Query that failed:', query.substring(0, 100) + '...');
     }
   }
   
@@ -825,7 +824,7 @@ async function main() {
     if (sqliteDb) {
       sqliteDb.close();
     }
-    await pgPool.end();
+    // Nie zamykamy pool - jest używany przez server.js
   }
 }
 

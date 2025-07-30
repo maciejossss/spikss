@@ -1,4 +1,4 @@
-const { createApp, ref, computed, onMounted } = Vue;
+const { createApp, ref, computed, onMounted, onUnmounted } = Vue;
 
 // API do komunikacji z serwerem - używa globalnego API_CONFIG
 const API = {
@@ -162,6 +162,20 @@ const TechnicianSelectView = {
 
         <!-- Lista techników -->
         <div v-else class="space-y-3">
+          <!-- Przycisk odświeżenia -->
+          <div class="text-center mb-4">
+            <button
+              @click="$emit('retry')"
+              :disabled="isLoading"
+              class="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+              title="Odśwież listę techników"
+            >
+              <i class="fas fa-sync mr-2" :class="{'animate-spin': isLoading}"></i>
+              Odśwież listę
+            </button>
+            <p class="text-xs text-gray-500 mt-1">Automatyczna aktualizacja co 30 sekund</p>
+          </div>
+          
           <button
             v-for="technician in technicians"
             :key="technician.id"
@@ -698,6 +712,46 @@ const MobileApp = {
       }
     };
 
+    // Automatyczna aktualizacja techników co 30 sekund
+    let techniciansUpdateInterval = null;
+    
+    const startTechniciansAutoUpdate = () => {
+      console.log('🔄 Uruchamiam automatyczną aktualizację techników co 30 sekund');
+      techniciansUpdateInterval = setInterval(async () => {
+        try {
+          console.log('🔄 Sprawdzam aktualizacje techników...');
+          const updatedTechnicians = await API.getTechnicians();
+          
+          // Sprawdź czy lista się zmieniła
+          const currentIds = availableTechnicians.value.map(t => t.id).sort();
+          const newIds = updatedTechnicians.map(t => t.id).sort();
+          
+          if (JSON.stringify(currentIds) !== JSON.stringify(newIds)) {
+            console.log('📋 Wykryto zmiany w liście techników - aktualizuję...');
+            availableTechnicians.value = updatedTechnicians;
+            
+            // Sprawdź czy aktualny technik nadal istnieje
+            if (currentUser.value && !updatedTechnicians.find(t => t.id === currentUser.value.id)) {
+              console.log('⚠️ Aktualny technik został usunięty - wracam do wyboru');
+              currentUser.value = null;
+              currentView.value = 'technician-select';
+              localStorage.removeItem('selected_technician');
+            }
+          }
+        } catch (error) {
+          console.error('❌ Błąd automatycznej aktualizacji techników:', error);
+        }
+      }, 30000); // 30 sekund
+    };
+    
+    const stopTechniciansAutoUpdate = () => {
+      if (techniciansUpdateInterval) {
+        console.log('🛑 Zatrzymuję automatyczną aktualizację techników');
+        clearInterval(techniciansUpdateInterval);
+        techniciansUpdateInterval = null;
+      }
+    };
+    
     // Auto-ładowanie przy starcie
     onMounted(() => {
       // Sprawdź czy jest zapisany technik
@@ -714,6 +768,14 @@ const MobileApp = {
       } else {
         loadTechnicians();
       }
+      
+      // Uruchom automatyczną aktualizację
+      startTechniciansAutoUpdate();
+    });
+    
+    // Zatrzymaj aktualizację przy odmontowaniu
+    onUnmounted(() => {
+      stopTechniciansAutoUpdate();
     });
 
     return {

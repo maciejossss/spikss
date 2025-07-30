@@ -346,7 +346,29 @@ app.delete('/api/sync/users/:userId', async (req, res) => {
       });
     }
     
-    // Usuń użytkownika
+    // 🔧 ROZWIĄZANIE: Najpierw odłącz zlecenia od technika
+    console.log(`🔧 Sprawdzam zlecenia przypisane do technika ${userId}...`);
+    const assignedOrders = await db.query(
+      'SELECT id, order_number FROM service_orders WHERE assigned_user_id = $1',
+      [userId]
+    );
+    
+    if (assignedOrders.rows.length > 0) {
+      console.log(`⚠️ Znaleziono ${assignedOrders.rows.length} zleceń przypisanych do technika ${userId}`);
+      console.log('🔧 Odłączam zlecenia od technika...');
+      
+      // Odłącz zlecenia od technika (ustaw assigned_user_id na NULL)
+      await db.query(
+        'UPDATE service_orders SET assigned_user_id = NULL WHERE assigned_user_id = $1',
+        [userId]
+      );
+      
+      console.log(`✅ Odłączono ${assignedOrders.rows.length} zleceń od technika ${userId}`);
+    } else {
+      console.log(`✅ Brak zleceń przypisanych do technika ${userId}`);
+    }
+    
+    // Teraz usuń użytkownika
     await db.query('DELETE FROM users WHERE id = $1', [userId]);
     
     console.log(`✅ Usunięto użytkownika ${existingUser.rows[0].full_name} (ID: ${userId}) z Railway`);
@@ -354,7 +376,8 @@ app.delete('/api/sync/users/:userId', async (req, res) => {
     res.json({
       success: true,
       message: `User ${existingUser.rows[0].full_name} (ID: ${userId}) deleted from Railway`,
-      deletedUserId: userId
+      deletedUserId: userId,
+      unassignedOrders: assignedOrders.rows.length
     });
     
   } catch (error) {

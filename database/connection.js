@@ -13,6 +13,9 @@ class DatabaseConnection {
       max: 20, // Maximum number of clients in the pool
       idleTimeoutMillis: 30000, // How long a client is allowed to remain idle
       connectionTimeoutMillis: 2000, // How long to wait for a connection
+      // Dodaj ustawienia kodowania UTF-8
+      client_encoding: 'UTF8',
+      options: '-c client_encoding=UTF8'
     };
 
     this.pool = new Pool(config);

@@ -326,6 +326,47 @@ app.post('/api/sync/users', async (req, res) => {
   }
 });
 
+// 🗑️ DELETE ENDPOINT: Usuń użytkownika z Railway
+app.delete('/api/sync/users/:userId', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId);
+    console.log(`🗑️ Próba usunięcia użytkownika ID: ${userId}`);
+    
+    // Sprawdź czy użytkownik istnieje
+    const existingUser = await db.query(
+      'SELECT id, full_name FROM users WHERE id = $1',
+      [userId]
+    );
+    
+    if (existingUser.rows.length === 0) {
+      console.log(`⚠️ Użytkownik ID: ${userId} nie istnieje w Railway`);
+      return res.status(404).json({
+        success: false,
+        error: 'User not found in Railway'
+      });
+    }
+    
+    // Usuń użytkownika
+    await db.query('DELETE FROM users WHERE id = $1', [userId]);
+    
+    console.log(`✅ Usunięto użytkownika ${existingUser.rows[0].full_name} (ID: ${userId}) z Railway`);
+    
+    res.json({
+      success: true,
+      message: `User ${existingUser.rows[0].full_name} (ID: ${userId}) deleted from Railway`,
+      deletedUserId: userId
+    });
+    
+  } catch (error) {
+    console.error('❌ Błąd podczas usuwania użytkownika:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Database error during user deletion',
+      details: error.message
+    });
+  }
+});
+
 // 🚀 SYNC ENDPOINT: Odbieraj zlecenia z desktop app
 app.post('/api/sync/orders', async (req, res) => {
   try {

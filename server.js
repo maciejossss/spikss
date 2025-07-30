@@ -98,18 +98,50 @@ app.get('/api/health/db', async (req, res) => {
           idleCount: db.pool?.idleCount || 0,
           waitingCount: db.pool?.waitingCount || 0
         }
-      },
-      environment: process.env.NODE_ENV || 'development',
-      version: '1.0.0'
+      }
     });
   } catch (error) {
+    console.error('❌ Health check failed:', error);
     res.status(500).json({
       status: 'ERROR',
-      timestamp: new Date().toISOString(),
-      database: {
-        status: 'disconnected',
-        error: error.message
+      error: error.message
+    });
+  }
+});
+
+
+
+// Napraw kodowanie UTF-8 w bazie danych
+app.get('/api/health/fix-encoding', async (req, res) => {
+  try {
+    console.log('🔧 Naprawiam kodowanie UTF-8 w bazie danych...');
+    
+    // Ustaw kodowanie dla sesji
+    await db.query('SET client_encoding = UTF8');
+    await db.query('SET names UTF8');
+    
+    // Sprawdź aktualne kodowanie
+    const encodingResult = await db.query('SHOW client_encoding');
+    const namesResult = await db.query('SHOW names');
+    
+    console.log('✅ Kodowanie naprawione:', {
+      client_encoding: encodingResult.rows[0]?.client_encoding,
+      names: namesResult.rows[0]?.names
+    });
+    
+    res.json({
+      status: 'OK',
+      message: 'Kodowanie UTF-8 zostało naprawione',
+      encoding: {
+        client_encoding: encodingResult.rows[0]?.client_encoding,
+        names: namesResult.rows[0]?.names
       }
+    });
+  } catch (error) {
+    console.error('❌ Błąd naprawy kodowania:', error);
+    res.status(500).json({
+      status: 'ERROR',
+      error: error.message
     });
   }
 });

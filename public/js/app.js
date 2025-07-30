@@ -313,11 +313,15 @@ const OrdersView = {
               </div>
               <div class="flex items-center">
                 <i class="fas fa-tools w-4 mr-2"></i>
-                <span>{{ order.device_name }}</span>
+                <span>{{ order.device_full_name || order.device_name }}</span>
               </div>
               <div class="flex items-center">
                 <i class="fas fa-clock w-4 mr-2"></i>
                 <span>{{ formatDate(order.scheduled_date) }}</span>
+              </div>
+              <div v-if="order.client_phone" class="flex items-center">
+                <i class="fas fa-phone w-4 mr-2"></i>
+                <span>{{ order.client_phone }}</span>
               </div>
             </div>
             
@@ -472,6 +476,23 @@ const OrderDetailView = {
         'cancelled': 'Anulowane'
       };
       return statusMap[status] || status;
+    },
+    
+    // Zadzwoń do klienta
+    callClient() {
+      if (this.order.client_phone) {
+        window.open(`tel:${this.order.client_phone}`, '_blank');
+      }
+    },
+    
+    // Otwórz nawigację do klienta
+    openNavigation() {
+      const address = this.order.address || 
+                     `${this.order.address_street || ''}, ${this.order.address_city || ''}`.trim();
+      if (address) {
+        const encodedAddress = encodeURIComponent(address);
+        window.open(`https://maps.google.com/maps?q=${encodedAddress}`, '_blank');
+      }
     }
   },
   
@@ -513,24 +534,65 @@ const OrderDetailView = {
           <h2 class="text-lg font-semibold text-gray-900 mb-4">{{ order.title }}</h2>
           
           <div class="space-y-3">
+            <!-- Klient -->
             <div class="flex items-center">
               <i class="fas fa-user w-5 mr-3 text-gray-400"></i>
-              <div>
+              <div class="flex-1">
                 <p class="font-medium text-gray-900">{{ order.client_name }}</p>
-                <p class="text-sm text-gray-600">{{ order.client_phone }}</p>
+                <div class="flex items-center space-x-4 text-sm text-gray-600">
+                  <span v-if="order.client_phone">
+                    <i class="fas fa-phone mr-1"></i>
+                    {{ order.client_phone }}
+                  </span>
+                  <span v-if="order.client_email">
+                    <i class="fas fa-envelope mr-1"></i>
+                    {{ order.client_email }}
+                  </span>
+                </div>
+              </div>
+              <button 
+                v-if="order.client_phone"
+                @click="callClient"
+                class="p-2 bg-green-600 text-white rounded-lg ml-2"
+                title="Zadzwoń do klienta"
+              >
+                <i class="fas fa-phone"></i>
+              </button>
+            </div>
+            
+            <!-- Adres -->
+            <div class="flex items-center">
+              <i class="fas fa-map-marker-alt w-5 mr-3 text-gray-400"></i>
+              <div class="flex-1">
+                <p class="text-gray-700">{{ order.address }}</p>
+                <p v-if="order.address_street && order.address_city" class="text-sm text-gray-600">
+                  {{ order.address_street }}, {{ order.address_city }}
+                  <span v-if="order.address_postal_code">{{ order.address_postal_code }}</span>
+                </p>
+              </div>
+              <button 
+                @click="openNavigation"
+                class="p-2 bg-blue-600 text-white rounded-lg ml-2"
+                title="Otwórz nawigację"
+              >
+                <i class="fas fa-directions"></i>
+              </button>
+            </div>
+            
+            <!-- Urządzenie -->
+            <div class="flex items-center">
+              <i class="fas fa-tools w-5 mr-3 text-gray-400"></i>
+              <div class="flex-1">
+                <p class="text-gray-700">{{ order.device_full_name || order.device_name }}</p>
+                <div class="text-sm text-gray-600 space-y-1">
+                  <span v-if="order.device_brand">Marka: {{ order.device_brand }}</span>
+                  <span v-if="order.device_serial">S/N: {{ order.device_serial }}</span>
+                  <span v-if="order.device_warranty">Gwarancja: {{ order.device_warranty }}</span>
+                </div>
               </div>
             </div>
             
-            <div class="flex items-center">
-              <i class="fas fa-map-marker-alt w-5 mr-3 text-gray-400"></i>
-              <p class="text-gray-700">{{ order.address }}</p>
-            </div>
-            
-            <div class="flex items-center">
-              <i class="fas fa-tools w-5 mr-3 text-gray-400"></i>
-              <p class="text-gray-700">{{ order.device_name }}</p>
-            </div>
-            
+            <!-- Termin -->
             <div class="flex items-center">
               <i class="fas fa-clock w-5 mr-3 text-gray-400"></i>
               <p class="text-gray-700">{{ formatDate(order.scheduled_date) }}</p>

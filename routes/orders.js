@@ -9,18 +9,31 @@ router.get('/:userId', async (req, res) => {
     
     console.log(`📱 Pobieranie zleceń dla technika ${userId}`);
     
-    // Query exactly matching local SQLite API
+    // Rozszerzony query z pełnymi informacjami o kliencie i urządzeniu
     const query = `
       SELECT 
         o.*,
+        -- Informacje o kliencie
         CASE 
           WHEN c.company_name IS NOT NULL AND c.company_name != '' 
           THEN c.company_name 
           ELSE COALESCE(c.first_name || ' ' || c.last_name, 'Klient bez nazwy')
         END as client_name,
         c.phone as client_phone,
+        c.email as client_email,
+        c.address_street,
+        c.address_city,
+        c.address_postal_code,
+        c.address_country,
         COALESCE(c.address_street || ', ' || c.address_city, c.address) as address,
-        d.name || ' ' || d.model as device_name,
+        -- Informacje o urządzeniu
+        d.name as device_name,
+        d.model as device_model,
+        d.brand as device_brand,
+        d.serial_number as device_serial,
+        d.warranty_status as device_warranty,
+        d.name || ' ' || d.model as device_full_name,
+        -- Informacje o techniku
         u.full_name as technician_name
       FROM service_orders o
       LEFT JOIN clients c ON o.client_id = c.id

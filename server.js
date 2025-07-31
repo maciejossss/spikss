@@ -767,7 +767,7 @@ app.post('/api/sync/devices', async (req, res) => {
           production_year, power_rating, fuel_type, installation_date,
           last_service_date, next_service_date, warranty_end_date,
           technical_data, notes, is_active, created_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
         ON CONFLICT (id) 
         DO UPDATE SET
           client_id = EXCLUDED.client_id,
@@ -785,8 +785,7 @@ app.post('/api/sync/devices', async (req, res) => {
         device.model || null, device.serial_number || null, device.production_year || null,
         device.power_rating || null, device.fuel_type || null, device.installation_date || null,
         device.last_service_date || null, device.next_service_date || null, device.warranty_end_date || null,
-        device.technical_data || null, device.notes || null, device.is_active !== undefined ? device.is_active : true,
-        device.created_at || now, now
+        device.technical_data || null, device.notes || null, device.is_active !== undefined ? device.is_active : true
       ]);
       
       syncedCount++;

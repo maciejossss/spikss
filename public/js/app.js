@@ -587,7 +587,7 @@ const OrderDetailView = {
                 <div class="text-sm text-gray-600 space-y-1">
                   
                   <span v-if="order.device_serial">S/N: {{ order.device_serial }}</span>
-                  <span v-if="order.device_warranty">Gwarancja: {{ order.device_warranty }}</span>
+                  
                 </div>
               </div>
             </div>

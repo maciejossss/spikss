@@ -542,6 +542,54 @@ app.post('/api/sync/orders', async (req, res) => {
   }
 });
 
+// Fix missing brand column in devices table endpoint
+app.post('/api/health/fix-devices-brand', async (req, res) => {
+  try {
+    console.log('🔧 Sprawdzam kolumnę brand w tabeli devices...');
+    
+    // Sprawdź czy kolumna brand już istnieje
+    const checkColumn = await db.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_schema = 'public' 
+        AND table_name = 'devices' 
+        AND column_name = 'brand'
+    `);
+    
+    if (checkColumn.rows.length > 0) {
+      console.log('✅ Kolumna brand już istnieje w tabeli devices');
+      return res.json({
+        status: 'SUCCESS',
+        message: 'Column brand already exists in devices table',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    // Dodaj kolumnę brand
+    console.log('🏗️ Dodaję kolumnę brand do tabeli devices...');
+    await db.query(`
+      ALTER TABLE devices 
+      ADD COLUMN brand VARCHAR(100)
+    `);
+    
+    console.log('✅ Kolumna brand dodana pomyślnie!');
+    
+    res.json({
+      status: 'SUCCESS',
+      message: 'Column brand added to devices table successfully',
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Błąd naprawy kolumny brand:', error);
+    res.status(500).json({
+      status: 'ERROR',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // 🚀 SYNC ENDPOINT: Odbieraj przypisania zleceń z desktop app
 app.put('/api/sync/assign', async (req, res) => {
   try {

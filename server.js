@@ -695,8 +695,8 @@ app.post('/api/sync/clients', async (req, res) => {
         INSERT INTO clients (
           id, type, first_name, last_name, company_name, email, phone, 
           address_street, address_city, address_postal_code, address_country,
-          nip, regon, is_active, created_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+          nip, regon, is_active
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
         ON CONFLICT (id) 
         DO UPDATE SET
           type = EXCLUDED.type,
@@ -705,18 +705,15 @@ app.post('/api/sync/clients', async (req, res) => {
           company_name = EXCLUDED.company_name,
           email = EXCLUDED.email,
           phone = EXCLUDED.phone,
-          updated_at = EXCLUDED.updated_at
+          updated_at = now()
       `;
-      
-      const now = new Date().toISOString();
       
       await db.query(query, [
         client.id, client.type || 'individual', client.first_name || null, 
         client.last_name || null, client.company_name || null, client.email || null,
         client.phone || null, client.address_street || null, client.address_city || null,
         client.address_postal_code || null, client.address_country || 'PL',
-        client.nip || null, client.regon || null, client.is_active !== undefined ? client.is_active : true,
-        client.created_at || now, now
+        client.nip || null, client.regon || null, client.is_active !== undefined ? client.is_active : true
       ]);
       
       syncedCount++;
@@ -766,7 +763,7 @@ app.post('/api/sync/devices', async (req, res) => {
           id, client_id, name, manufacturer, model, serial_number,
           production_year, power_rating, fuel_type, installation_date,
           last_service_date, next_service_date, warranty_end_date,
-          technical_data, notes, is_active, created_at, updated_at
+          technical_data, notes, is_active
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
         ON CONFLICT (id) 
         DO UPDATE SET
@@ -775,7 +772,7 @@ app.post('/api/sync/devices', async (req, res) => {
           manufacturer = EXCLUDED.manufacturer,
           model = EXCLUDED.model,
           serial_number = EXCLUDED.serial_number,
-          updated_at = EXCLUDED.updated_at
+          updated_at = now()
       `;
       
       const now = new Date().toISOString();

@@ -29,7 +29,6 @@ router.get('/:userId', async (req, res) => {
         -- Informacje o urządzeniu
         d.name as device_name,
         d.model as device_model,
-        d.brand as device_brand,
         d.serial_number as device_serial,
         d.warranty_status as device_warranty,
         d.name || ' ' || d.model as device_full_name,

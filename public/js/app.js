@@ -585,7 +585,7 @@ const OrderDetailView = {
               <div class="flex-1">
                 <p class="text-gray-700">{{ order.device_full_name || order.device_name }}</p>
                 <div class="text-sm text-gray-600 space-y-1">
-                  <span v-if="order.device_brand">Marka: {{ order.device_brand }}</span>
+                  
                   <span v-if="order.device_serial">S/N: {{ order.device_serial }}</span>
                   <span v-if="order.device_warranty">Gwarancja: {{ order.device_warranty }}</span>
                 </div>

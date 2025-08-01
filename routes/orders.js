@@ -29,7 +29,9 @@ router.get('/:userId', async (req, res) => {
         -- Informacje o urządzeniu
         d.name as device_name,
         d.model as device_model,
+        d.brand as device_brand,
         d.serial_number as device_serial,
+        d.warranty_status as device_warranty,
         d.name || ' ' || d.model as device_full_name,
         -- Informacje o techniku
         u.full_name as technician_name
@@ -69,7 +71,7 @@ router.put('/:orderId/status', async (req, res) => {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    if (!['new', 'in_progress', 'completed'].includes(status)) {
+    if (!['new', 'in_progress', 'completed', 'rejected'].includes(status)) {
       return res.status(400).json({ error: 'Invalid status' });
     }
 
@@ -104,6 +106,14 @@ router.put('/:orderId/status', async (req, res) => {
       updateData.actual_hours = actualHours;
 
       console.log(`✅ Ukończono zlecenie ${orderId}, czas pracy: ${actualHours}h`);
+    }
+
+    // === ZLECENIE NIE ZREALIZOWANE ===
+    if (status === 'rejected') {
+      updateData.completed_at = now;
+      updateData.completion_notes = notes || '';
+
+      console.log(`❌ Zlecenie ${orderId} oznaczone jako nie zrealizowane`);
     }
 
     // Aktualizuj w bazie danych

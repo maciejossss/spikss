@@ -114,6 +114,136 @@ app.get('/api/health/db', async (req, res) => {
   }
 });
 
+// Fix missing service_orders table endpoint
+app.post('/api/health/fix-tables', async (req, res) => {
+  try {
+    console.log('🔧 Naprawiam brakującą tabelę service_orders...');
+    
+    // Sprawdź czy tabela service_orders już istnieje
+    const checkTable = await db.query(`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public' AND table_name = 'service_orders'
+    `);
+    
+    if (checkTable.rows.length > 0) {
+      console.log('✅ Tabela service_orders już istnieje');
+      return res.json({
+        status: 'SUCCESS',
+        message: 'Table service_orders already exists',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    // Utwórz tabelę service_orders BEZ foreign keys (dodamy później)
+    console.log('🏗️ Tworzę tabelę service_orders...');
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS service_orders (
+        id SERIAL PRIMARY KEY,
+        order_number VARCHAR(50) UNIQUE NOT NULL,
+        client_id INTEGER,
+        device_id INTEGER,
+        assigned_user_id INTEGER,
+        service_categories TEXT,
+        status VARCHAR(50) DEFAULT 'new',
+        priority VARCHAR(20) DEFAULT 'medium',
+        type VARCHAR(50) DEFAULT 'maintenance',
+        title VARCHAR(255),
+        description TEXT,
+        scheduled_date TIMESTAMP,
+        started_at TIMESTAMP,
+        completed_at TIMESTAMP,
+        estimated_hours DECIMAL(5,2) DEFAULT 0,
+        actual_hours DECIMAL(5,2) DEFAULT 0,
+        labor_cost DECIMAL(10,2) DEFAULT 0,
+        parts_cost DECIMAL(10,2) DEFAULT 0,
+        total_cost DECIMAL(10,2) DEFAULT 0,
+        completed_categories TEXT,
+        work_photos TEXT,
+        completion_notes TEXT,
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    
+    console.log('🔗 Próbuję dodać foreign keys...');
+    try {
+      await db.query('ALTER TABLE service_orders ADD CONSTRAINT service_orders_client_id_fkey FOREIGN KEY (client_id) REFERENCES clients(id)');
+      console.log('✅ Foreign key clients dodany');
+    } catch (err) {
+      console.log('⚠️ Nie udało się dodać foreign key clients:', err.message);
+    }
+    
+    try {
+      await db.query('ALTER TABLE service_orders ADD CONSTRAINT service_orders_device_id_fkey FOREIGN KEY (device_id) REFERENCES devices(id)');
+      console.log('✅ Foreign key devices dodany');
+    } catch (err) {
+      console.log('⚠️ Nie udało się dodać foreign key devices:', err.message);
+    }
+    
+    try {
+      await db.query('ALTER TABLE service_orders ADD CONSTRAINT service_orders_user_id_fkey FOREIGN KEY (assigned_user_id) REFERENCES users(id)');
+      console.log('✅ Foreign key users dodany');
+    } catch (err) {
+      console.log('⚠️ Nie udało się dodać foreign key users:', err.message);
+    }
+    
+    // Utwórz indeksy
+    console.log('📋 Tworzę indeksy...');
+    await db.query('CREATE INDEX IF NOT EXISTS idx_service_orders_assigned_user ON service_orders(assigned_user_id)');
+    await db.query('CREATE INDEX IF NOT EXISTS idx_service_orders_status ON service_orders(status)');
+    await db.query('CREATE INDEX IF NOT EXISTS idx_service_orders_client ON service_orders(client_id)');
+    
+    console.log('✅ Tabela service_orders utworzona pomyślnie!');
+    
+    res.json({
+      status: 'SUCCESS',
+      message: 'Table service_orders created successfully with indexes',
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Błąd podczas tworzenia tabeli service_orders:', error);
+    res.status(500).json({
+      status: 'ERROR',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Check database tables endpoint
+app.get('/api/health/tables', async (req, res) => {
+  try {
+    const result = await db.query(`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public' 
+      ORDER BY table_name
+    `);
+    
+    const tables = result.rows.map(row => row.table_name);
+    const expectedTables = ['users', 'clients', 'devices', 'service_orders', 'spare_parts'];
+    const missingTables = expectedTables.filter(table => !tables.includes(table));
+    
+    res.json({
+      status: 'OK',
+      timestamp: new Date().toISOString(),
+      tables: tables,
+      expectedTables: expectedTables,
+      missingTables: missingTables,
+      allTablesExist: missingTables.length === 0
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'ERROR',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // 🚀 SYNC ENDPOINT: Odbieraj zlecenia z desktop app
 app.post('/api/sync/orders', async (req, res) => {
   try {
@@ -267,6 +397,148 @@ app.put('/api/sync/assign', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Database error during assignment sync',
+      details: error.message
+    });
+  }
+});
+
+// === SYNC ENDPOINTS FOR DESKTOP ===
+
+// 🚀 SYNC ENDPOINT: Synchronizuj klientów z desktop app
+app.post('/api/sync/clients', async (req, res) => {
+  try {
+    const clients = req.body.clients || [];
+    
+    console.log(`📤 Otrzymano ${clients.length} klientów z desktop app`);
+    
+    if (!Array.isArray(clients) || clients.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'No clients data provided'
+      });
+    }
+    
+    let syncedCount = 0;
+    
+    for (const client of clients) {
+      if (!client.id || (!client.first_name && !client.company_name)) {
+        continue; // Pomiń niepełne dane
+      }
+      
+      const query = `
+        INSERT INTO clients (
+          id, type, first_name, last_name, company_name, email, phone, 
+          address_street, address_city, address_postal_code, address_country,
+          nip, regon, is_active, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+        ON CONFLICT (id) 
+        DO UPDATE SET
+          type = EXCLUDED.type,
+          first_name = EXCLUDED.first_name,
+          last_name = EXCLUDED.last_name,
+          company_name = EXCLUDED.company_name,
+          email = EXCLUDED.email,
+          phone = EXCLUDED.phone,
+          updated_at = EXCLUDED.updated_at
+      `;
+      
+      const now = new Date().toISOString();
+      
+      await db.query(query, [
+        client.id, client.type || 'individual', client.first_name || null, 
+        client.last_name || null, client.company_name || null, client.email || null,
+        client.phone || null, client.address_street || null, client.address_city || null,
+        client.address_postal_code || null, client.address_country || 'PL',
+        client.nip || null, client.regon || null, client.is_active !== undefined ? client.is_active : true,
+        client.created_at || now, now
+      ]);
+      
+      syncedCount++;
+    }
+    
+    console.log(`✅ Zsynchronizowano ${syncedCount} klientów do Railway PostgreSQL`);
+    
+    res.json({
+      success: true,
+      message: `${syncedCount} clients synced to Railway PostgreSQL`,
+      syncedCount
+    });
+    
+  } catch (error) {
+    console.error('❌ Błąd synchronizacji klientów:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Database error during client sync',
+      details: error.message
+    });
+  }
+});
+
+// 📦 SYNC ENDPOINT: Synchronizuj urządzenia z desktop app
+app.post('/api/sync/devices', async (req, res) => {
+  try {
+    const devices = req.body.devices || [];
+    
+    console.log(`📦 Otrzymano ${devices.length} urządzeń z desktop app`);
+    
+    if (!Array.isArray(devices) || devices.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'No devices data provided'
+      });
+    }
+    
+    let syncedCount = 0;
+    
+    for (const device of devices) {
+      if (!device.id || !device.name) {
+        continue; // Pomiń niepełne dane
+      }
+      
+      const query = `
+        INSERT INTO devices (
+          id, client_id, name, manufacturer, model, serial_number,
+          production_year, power_rating, fuel_type, installation_date,
+          last_service_date, next_service_date, warranty_end_date,
+          technical_data, notes, is_active, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+        ON CONFLICT (id) 
+        DO UPDATE SET
+          client_id = EXCLUDED.client_id,
+          name = EXCLUDED.name,
+          manufacturer = EXCLUDED.manufacturer,
+          model = EXCLUDED.model,
+          serial_number = EXCLUDED.serial_number,
+          updated_at = EXCLUDED.updated_at
+      `;
+      
+      const now = new Date().toISOString();
+      
+      await db.query(query, [
+        device.id, device.client_id, device.name, device.manufacturer || null,
+        device.model || null, device.serial_number || null, device.production_year || null,
+        device.power_rating || null, device.fuel_type || null, device.installation_date || null,
+        device.last_service_date || null, device.next_service_date || null, device.warranty_end_date || null,
+        device.technical_data || null, device.notes || null, device.is_active !== undefined ? device.is_active : true,
+        device.created_at || now, now
+      ]);
+      
+      syncedCount++;
+    }
+    
+    console.log(`✅ Zsynchronizowano ${syncedCount} urządzeń do Railway PostgreSQL`);
+    
+    res.json({
+      success: true,
+      message: `${syncedCount} devices synced to Railway PostgreSQL`,
+      syncedCount
+    });
+    
+  } catch (error) {
+    console.error('❌ Błąd synchronizacji urządzeń:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Database error during device sync',
       details: error.message
     });
   }

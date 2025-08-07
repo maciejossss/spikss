@@ -920,7 +920,7 @@ const assignOrderToTechnician = async (technicianId, notes = '') => {
       showAssignModal.value = false
       
       // Pokaż komunikat
-      alert(`✅ Zlecenie ${assigningOrder.value.order_number} zostało wysłane do technika ${technician?.full_name}!\n\n📱 Technik zobaczy zlecenie w aplikacji mobilnej na adresie:\nhttps://web-production-fc58d.up.railway.app`)
+      alert(`✅ Zlecenie ${assigningOrder.value.order_number} zostało wysłane do technika ${technician?.full_name}!\n\n📱 Technik zobaczy zlecenie w aplikacji mobilnej na adresie:\nhttps://web-production-310c4.up.railway.app`)
       
       // Wyczyść
       assigningOrder.value = null
@@ -948,7 +948,7 @@ const syncOrderToRailway = async (order, showAlert = true) => {
         : order.service_categories || []
     }
     
-    const response = await fetch('https://web-production-fc58d.up.railway.app/api/sync/orders', {
+    const response = await fetch('https://web-production-310c4.up.railway.app/api/sync/orders', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -968,7 +968,7 @@ const syncOrderToRailway = async (order, showAlert = true) => {
       
       // Pokaż potwierdzenie
       if (showAlert) {
-        alert(`✅ Zlecenie ${order.order_number} zostało wysłane do Railway!\n\n📱 Będzie dostępne w aplikacji mobilnej na:\nhttps://web-production-fc58d.up.railway.app`)
+        alert(`✅ Zlecenie ${order.order_number} zostało wysłane do Railway!\n\n📱 Będzie dostępne w aplikacji mobilnej na:\nhttps://web-production-310c4.up.railway.app`)
       }
       
     } else {
@@ -993,7 +993,7 @@ const syncAssignmentToRailway = async (orderId, technicianId, notes) => {
   try {
     console.log(`🌐 Wysyłanie przypisania zlecenia ${orderId} do technika ${technicianId} na Railway...`)
     
-    const response = await fetch('https://web-production-fc58d.up.railway.app/api/sync/assign', {
+    const response = await fetch('https://web-production-310c4.up.railway.app/api/sync/assign', {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',

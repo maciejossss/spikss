@@ -285,14 +285,12 @@
 
               <!-- Terminy -->
               <td class="px-6 py-4 whitespace-nowrap text-sm text-secondary-900">
-                <div v-if="order.scheduled_date">
-                  Planowane: {{ formatDate(order.scheduled_date) }}
-                </div>
-                <div v-if="order.started_at" class="text-secondary-500">
-                  Rozpoczęte: {{ formatDate(order.started_at) }}
-                </div>
-                <div v-if="order.completed_at" class="text-green-600">
-                  Ukończone: {{ formatDate(order.completed_at) }}
+                <div v-if="order.scheduled_date">Planowane: {{ formatDate(order.scheduled_date) }}</div>
+                <div v-if="order.started_at" class="text-secondary-500">Rozpoczęte: {{ formatTime(order.started_at) }}</div>
+                <div v-if="order.completed_at" class="text-green-600">Ukończone: {{ formatTime(order.completed_at) }}</div>
+                <div v-if="order.started_at && order.completed_at" class="text-xs text-secondary-600">
+                  Czas pracy: {{ humanDuration(order.started_at, order.completed_at) }}
+                  <span v-if="order.estimated_hours"> (szac.: {{ order.estimated_hours }}h)</span>
                 </div>
               </td>
 
@@ -480,7 +478,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { formatDate } from '../../utils/date'
+import { formatDate, formatTime } from '../../utils/date'
 import OrderFormModal from './OrderFormModal.vue'
 import OrderBillingModal from '../../components/OrderBillingModal.vue'
 import ConfirmModal from '../../components/ConfirmModal.vue'
@@ -677,6 +675,19 @@ const getClientName = (client) => {
   return client.type === 'business' 
     ? client.company_name 
     : `${client.first_name} ${client.last_name}`
+}
+
+// Pomocnicze: tekstowa różnica czasu
+const humanDuration = (start, end) => {
+  try {
+    const s = new Date(start).getTime();
+    const e = new Date(end).getTime();
+    if (!Number.isFinite(s) || !Number.isFinite(e) || e <= s) return '';
+    const mins = Math.round((e - s) / 60000);
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return `${h}h ${m}m`;
+  } catch (_) { return ''; }
 }
 
 const getDeviceName = (deviceId) => {
@@ -948,7 +959,8 @@ const syncOrderToRailway = async (order, showAlert = true) => {
         : order.service_categories || []
     }
     
-    const response = await fetch('https://web-production-310c4.up.railway.app/api/sync/orders', {
+    const RAILWAY_BASE = (window && window.RAILWAY_API_BASE) || 'https://www.instalacjeserwis.pl';
+    const response = await fetch(`${RAILWAY_BASE}/api/sync/orders`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -993,7 +1005,8 @@ const syncAssignmentToRailway = async (orderId, technicianId, notes) => {
   try {
     console.log(`🌐 Wysyłanie przypisania zlecenia ${orderId} do technika ${technicianId} na Railway...`)
     
-    const response = await fetch('https://web-production-310c4.up.railway.app/api/sync/assign', {
+    const RAILWAY_BASE = (window && window.RAILWAY_API_BASE) || 'https://www.instalacjeserwis.pl';
+    const response = await fetch(`${RAILWAY_BASE}/api/sync/assign`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',

@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test połączenia API</title>
+    <style>
+        body { font-family: Arial; margin: 40px; }
+        button { padding: 10px 20px; margin: 10px; }
+        .result { margin: 20px 0; padding: 10px; border: 1px solid #ccc; }
+        .success { background: #d4edda; }
+        .error { background: #f8d7da; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Test połączenia z API serwisowym</h1>
+    
+    <button onclick="testHealth()">Test Health API</button>
+    <button onclick="testTechnicians()">Test Technicy</button>
+    <button onclick="testOrders()">Test Zlecenia</button>
+    
+    <div id="result"></div>
+
+    <script>
+        const API_BASE = 'http://localhost:5174/api';
+        
+        async function testHealth() {
+            const resultDiv = document.getElementById('result');
+            try {
+                resultDiv.innerHTML = '🔄 Testowanie health...';
+                const response = await fetch(`${API_BASE}/health`);
+                const data = await response.json();
+                
+                resultDiv.className = 'result success';
+                resultDiv.innerHTML = `✅ Health OK:<br><pre>${JSON.stringify(data, null, 2)}</pre>`;
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `❌ Health Error: ${error.message}`;
+            }
+        }
+        
+        async function testTechnicians() {
+            const resultDiv = document.getElementById('result');
+            try {
+                resultDiv.innerHTML = '🔄 Testowanie techników...';
+                const response = await fetch(`${API_BASE}/technicians`);
+                const data = await response.json();
+                
+                resultDiv.className = 'result success';
+                resultDiv.innerHTML = `✅ Technicy OK:<br><pre>${JSON.stringify(data, null, 2)}</pre>`;
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `❌ Technicy Error: ${error.message}`;
+            }
+        }
+        
+        async function testOrders() {
+            const resultDiv = document.getElementById('result');
+            try {
+                resultDiv.innerHTML = '🔄 Testowanie zleceń...';
+                const response = await fetch(`${API_BASE}/desktop/orders/2`);
+                const data = await response.json();
+                
+                resultDiv.className = 'result success';
+                resultDiv.innerHTML = `✅ Zlecenia OK (${data.length} zleceń):<br><pre>${JSON.stringify(data, null, 2)}</pre>`;
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `❌ Zlecenia Error: ${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html> 

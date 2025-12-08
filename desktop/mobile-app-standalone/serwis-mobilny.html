@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Serwis Mobilny - Standalone</title>
+    
+    <!-- PWA Manifest inline -->
+    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIlNlcndpcyBNb2JpbG55IiwKICAic2hvcnRfbmFtZSI6ICJTZXJ3aXMiLAogICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLAogICJ0aGVtZV9jb2xvciI6ICIjMjU2M2ViIiwKICAiYmFja2dyb3VuZF9jb2xvciI6ICIjZjhmYWZjIiwKICAic3RhcnRfdXJsIjogIi4vIgp9">
+    
+    <meta name="theme-color" content="#2563eb">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Serwis Mobilny">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8fafc;
+            color: #1e293b;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #2563eb, #3b82f6);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            border-radius: 16px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+        }
+        
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e2e8f0;
+        }
+        
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 12px 16px;
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin: 8px 0;
+            transition: background 0.2s;
+            text-decoration: none;
+            text-align: center;
+        }
+        
+        .btn:hover, .btn:active {
+            background: #1d4ed8;
+        }
+        
+        .btn-success {
+            background: #059669;
+        }
+        
+        .btn-success:hover, .btn-success:active {
+            background: #047857;
+        }
+        
+        .btn-danger {
+            background: #dc2626;
+        }
+        
+        .btn-danger:hover, .btn-danger:active {
+            background: #b91c1c;
+        }
+        
+        .btn-secondary {
+            background: #64748b;
+        }
+        
+        .btn-secondary:hover, .btn-secondary:active {
+            background: #475569;
+        }
+        
+        .status {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .status-new {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+        
+        .status-in_progress {
+            background: #fef3c7;
+            color: #d97706;
+        }
+        
+        .status-completed {
+            background: #d1fae5;
+            color: #059669;
+        }
+        
+        .priority-high {
+            border-left: 4px solid #dc2626;
+        }
+        
+        .priority-medium {
+            border-left: 4px solid #d97706;
+        }
+        
+        .priority-low {
+            border-left: 4px solid #059669;
+        }
+        
+        .connection-status {
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+        
+        .connected {
+            background: #d1fae5;
+            color: #059669;
+            border: 1px solid #a7f3d0;
+        }
+        
+        .disconnected {
+            background: #fef2f2;
+            color: #dc2626;
+            border: 1px solid #fecaca;
+        }
+        
+        .offline {
+            background: #f1f5f9;
+            color: #64748b;
+            border: 1px solid #cbd5e1;
+        }
+        
+        .timer {
+            background: #1e293b;
+            color: white;
+            padding: 16px;
+            border-radius: 12px;
+            text-align: center;
+            margin: 16px 0;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        h1, h2, h3 {
+            margin-bottom: 12px;
+        }
+        
+        p {
+            margin-bottom: 8px;
+        }
+        
+        .order-item {
+            margin-bottom: 16px;
+            transition: transform 0.2s;
+        }
+        
+        .order-item:hover {
+            transform: translateY(-2px);
+        }
+        
+        .input-group {
+            margin-bottom: 16px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 4px;
+            font-weight: 600;
+            color: #374151;
+        }
+        
+        input, select, textarea {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+        
+        .alert {
+            padding: 12px;
+            border-radius: 8px;
+            margin: 16px 0;
+        }
+        
+        .alert-success {
+            background: #d1fae5;
+            color: #059669;
+            border: 1px solid #a7f3d0;
+        }
+        
+        .alert-info {
+            background: #dbeafe;
+            color: #1d4ed8;
+            border: 1px solid #93c5fd;
+        }
+        
+        .version {
+            text-align: center;
+            color: #64748b;
+            font-size: 12px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🔧 Serwis Mobilny</h1>
+            <p>Aplikacja Standalone</p>
+            <div class="version">v1.0.0 - Tryb Offline</div>
+        </div>
+        
+        <!-- Connection Status -->
+        <div id="connectionStatus" class="connection-status offline">
+            📱 Tryb Offline - Dane lokalne
+        </div>
+        
+        <!-- Info o aplikacji -->
+        <div class="alert alert-info">
+            <strong>ℹ️ To jest wersja standalone</strong><br>
+            Dane są przechowywane lokalnie w telefonie. Aby synchronizować z serwerem, użyj opcji "Połącz z serwerem".
+        </div>
+        
+        <!-- Login Screen -->
+        <div id="loginScreen" class="card">
+            <h2>Wybierz Technika</h2>
+            <div class="input-group">
+                <label for="technicianSelect">Technik:</label>
+                <select id="technicianSelect">
+                    <option value="">-- Wybierz technika --</option>
+                    <option value="1">Jan Kowalski</option>
+                    <option value="2">Maria Nowak</option>
+                    <option value="3">Piotr Wiśniewski</option>
+                </select>
+            </div>
+            <button class="btn" onclick="loginAsSelected()">🔑 Zaloguj się</button>
+            <button class="btn btn-secondary" onclick="showServerConnect()">🌐 Połącz z serwerem</button>
+        </div>
+        
+        <!-- Server Connection -->
+        <div id="serverConnect" class="card hidden">
+            <h2>Połączenie z serwerem</h2>
+            <div class="input-group">
+                <label for="serverUrl">Adres serwera:</label>
+                <input type="text" id="serverUrl" value="http://192.168.1.27:5174" placeholder="http://IP:5174">
+            </div>
+            <button class="btn" onclick="testConnection()">🔄 Testuj połączenie</button>
+            <button class="btn btn-secondary" onclick="hideServerConnect()">⬅️ Powrót</button>
+            <div id="connectionResult"></div>
+        </div>
+        
+        <!-- Main App -->
+        <div id="mainApp" class="hidden">
+            <!-- Current Work Timer -->
+            <div id="workTimer" class="timer hidden">
+                <div>⏱️ Czas pracy</div>
+                <div id="timerDisplay">00:00:00</div>
+                <div id="currentOrderTitle"></div>
+            </div>
+            
+            <!-- Orders List -->
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <h2>📋 Moje zlecenia</h2>
+                    <button class="btn" style="width: auto; margin: 0; padding: 8px 12px; font-size: 14px;" onclick="addNewOrder()">➕ Dodaj</button>
+                </div>
+                <div id="ordersList">
+                    <div style="text-align: center; color: #64748b; padding: 20px;">
+                        Brak zleceń. Kliknij "Dodaj" aby utworzyć nowe.
+                    </div>
+                </div>
+                <button class="btn" onclick="refreshOrders()">🔄 Odśwież</button>
+            </div>
+            
+            <!-- Actions -->
+            <div class="card">
+                <h3>⚙️ Akcje</h3>
+                <button class="btn btn-secondary" onclick="exportData()">📤 Eksportuj dane</button>
+                <button class="btn btn-secondary" onclick="importData()">📥 Importuj dane</button>
+                <button class="btn btn-secondary" onclick="showServerConnect()">🌐 Synchronizuj z serwerem</button>
+            </div>
+            
+            <!-- Logout -->
+            <button class="btn btn-danger" onclick="logout()">🚪 Wyloguj</button>
+        </div>
+        
+        <!-- Add Order Modal -->
+        <div id="addOrderModal" class="card hidden">
+            <h2>➕ Nowe zlecenie</h2>
+            <div class="input-group">
+                <label for="orderTitle">Tytuł:</label>
+                <input type="text" id="orderTitle" placeholder="np. Przegląd kotła">
+            </div>
+            <div class="input-group">
+                <label for="orderClient">Klient:</label>
+                <input type="text" id="orderClient" placeholder="Nazwa klienta">
+            </div>
+            <div class="input-group">
+                <label for="orderAddress">Adres:</label>
+                <input type="text" id="orderAddress" placeholder="Adres wykonania">
+            </div>
+            <div class="input-group">
+                <label for="orderPriority">Priorytet:</label>
+                <select id="orderPriority">
+                    <option value="low">Niski</option>
+                    <option value="medium" selected>Średni</option>
+                    <option value="high">Wysoki</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label for="orderNotes">Opis:</label>
+                <textarea id="orderNotes" rows="3" placeholder="Opis prac do wykonania"></textarea>
+            </div>
+            <button class="btn btn-success" onclick="saveNewOrder()">✅ Zapisz</button>
+            <button class="btn btn-secondary" onclick="cancelAddOrder()">❌ Anuluj</button>
+        </div>
+    </div>
+
+    <script>
+        // Konfiguracja
+        let API_BASE = 'http://192.168.1.27:5174/api';
+        let currentTechnician = null;
+        let orders = [];
+        let workTimer = null;
+        let workStartTime = null;
+        let isOnlineMode = false;
+        
+        // Inicjalizacja
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('📱 Serwis Mobilny Standalone uruchomiony');
+            loadLocalData();
+            
+            // Sprawdź czy jest zapisany technik
+            const savedTechnicianId = localStorage.getItem('technicianId');
+            const savedTechnicianName = localStorage.getItem('technicianName');
+            if (savedTechnicianId && savedTechnicianName) {
+                currentTechnician = { id: savedTechnicianId, name: savedTechnicianName };
+                showMainApp();
+                loadOrders();
+            }
+            
+            // Dodaj przykładowe dane jeśli to pierwsza instalacja
+            if (!localStorage.getItem('serwis_installed')) {
+                addSampleData();
+                localStorage.setItem('serwis_installed', 'true');
+            }
+        });
+        
+        // Dodanie przykładowych danych
+        function addSampleData() {
+            const sampleOrders = [
+                {
+                    id: Date.now() + 1,
+                    title: 'Przegląd roczny kotła Vaillant',
+                    client: 'Jan Kowalski',
+                    address: 'ul. Główna 15, Warszawa',
+                    priority: 'high',
+                    status: 'new',
+                    notes: 'Kompleksowy przegląd kotła gazowego',
+                    created: new Date().toISOString()
+                },
+                {
+                    id: Date.now() + 2,
+                    title: 'Naprawa awaryjna - brak c.w.u.',
+                    client: 'Maria Nowak',
+                    address: 'ul. Przemysłowa 45, Warszawa',
+                    priority: 'high',
+                    status: 'new', 
+                    notes: 'Zgłoszenie awaryjne - brak ciepłej wody',
+                    created: new Date().toISOString()
+                },
+                {
+                    id: Date.now() + 3,
+                    title: 'Przegląd pompy ciepła',
+                    client: 'Piotr Wiśniewski',
+                    address: 'ul. Słoneczna 12, Warszawa',
+                    priority: 'medium',
+                    status: 'new',
+                    notes: 'Przegląd sezonowy pompy ciepła',
+                    created: new Date().toISOString()
+                }
+            ];
+            
+            localStorage.setItem('serwis_orders', JSON.stringify(sampleOrders));
+        }
+        
+        // Ładowanie danych lokalnych
+        function loadLocalData() {
+            const savedOrders = localStorage.getItem('serwis_orders');
+            if (savedOrders) {
+                orders = JSON.parse(savedOrders);
+            }
+        }
+        
+        // Zapisywanie danych lokalnych
+        function saveLocalData() {
+            localStorage.setItem('serwis_orders', JSON.stringify(orders));
+        }
+        
+        // Logowanie jako wybrany technik
+        function loginAsSelected() {
+            const select = document.getElementById('technicianSelect');
+            const selectedId = select.value;
+            const selectedName = select.options[select.selectedIndex].text;
+            
+            if (!selectedId) {
+                alert('Wybierz technika');
+                return;
+            }
+            
+            currentTechnician = { id: selectedId, name: selectedName };
+            localStorage.setItem('technicianId', selectedId);
+            localStorage.setItem('technicianName', selectedName);
+            
+            showMainApp();
+            loadOrders();
+        }
+        
+        // Wylogowanie
+        function logout() {
+            currentTechnician = null;
+            localStorage.removeItem('technicianId');
+            localStorage.removeItem('technicianName');
+            stopWorkTimer();
+            showLoginScreen();
+        }
+        
+        // Przełączanie ekranów
+        function showMainApp() {
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('serverConnect').classList.add('hidden');
+            document.getElementById('mainApp').classList.remove('hidden');
+            document.getElementById('addOrderModal').classList.add('hidden');
+        }
+        
+        function showLoginScreen() {
+            document.getElementById('loginScreen').classList.remove('hidden');
+            document.getElementById('serverConnect').classList.add('hidden');
+            document.getElementById('mainApp').classList.add('hidden');
+            document.getElementById('addOrderModal').classList.add('hidden');
+        }
+        
+        function showServerConnect() {
+            document.getElementById('serverConnect').classList.remove('hidden');
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('mainApp').classList.add('hidden');
+        }
+        
+        function hideServerConnect() {
+            document.getElementById('serverConnect').classList.add('hidden');
+            if (currentTechnician) {
+                showMainApp();
+            } else {
+                showLoginScreen();
+            }
+        }
+        
+        // Ładowanie zleceń
+        function loadOrders() {
+            renderOrders(orders);
+        }
+        
+        // Renderowanie listy zleceń
+        function renderOrders(ordersList) {
+            const listEl = document.getElementById('ordersList');
+            
+            if (ordersList.length === 0) {
+                listEl.innerHTML = '<div style="text-align: center; color: #64748b; padding: 20px;">Brak zleceń. Kliknij "Dodaj" aby utworzyć nowe.</div>';
+                return;
+            }
+            
+            listEl.innerHTML = ordersList.map(order => `
+                <div class="order-item card priority-${order.priority}">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <h3 style="margin: 0;">${order.title}</h3>
+                        <span style="background: #3b82f6; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold;">
+                            ${order.order_number || '#' + order.id}
+                        </span>
+                    </div>
+                    <p><strong>Klient:</strong> ${order.client || order.client_name}</p>
+                    <p><strong>Adres:</strong> ${order.address}</p>
+                    <p><strong>Urządzenie:</strong> ${order.device || order.device_name || 'Nie podano'}</p>
+                    <p><strong>Priorytet:</strong> ${getPriorityLabel(order.priority)}</p>
+                    ${order.notes || order.description ? `<p><strong>Opis:</strong> ${order.notes || order.description}</p>` : ''}
+                    <div style="margin: 12px 0;">
+                        <span class="status status-${order.status}">${getStatusLabel(order.status)}</span>
+                    </div>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        ${order.status === 'new' ? 
+                            `<button class="btn btn-success" onclick="startWork(${order.id})">▶️ Rozpocznij</button>` :
+                            order.status === 'in_progress' ? 
+                                `<button class="btn btn-danger" onclick="completeWork(${order.id})">✅ Zakończ</button>` : ''
+                        }
+                        <button class="btn btn-secondary" onclick="editOrder(${order.id})" style="width: auto; padding: 8px 12px;">✏️</button>
+                        <button class="btn btn-danger" onclick="deleteOrder(${order.id})" style="width: auto; padding: 8px 12px;">🗑️</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // Rozpoczęcie pracy
+        function startWork(orderId) {
+            const order = orders.find(o => o.id === orderId);
+            if (!order) return;
+            
+            order.status = 'in_progress';
+            order.startTime = new Date().toISOString();
+            
+            saveLocalData();
+            startWorkTimer(order.title);
+            renderOrders(orders);
+            
+            showAlert('🚀 Rozpoczęto pracę nad zleceniem: ' + order.title, 'success');
+        }
+        
+        // Zakończenie pracy
+        function completeWork(orderId) {
+            const order = orders.find(o => o.id === orderId);
+            if (!order) return;
+            
+            const notes = prompt('Dodaj notatki z wykonanej pracy (opcjonalnie):') || '';
+            
+            order.status = 'completed';
+            order.endTime = new Date().toISOString();
+            order.completionNotes = notes;
+            
+            // Oblicz czas pracy
+            if (order.startTime) {
+                const startTime = new Date(order.startTime);
+                const endTime = new Date();
+                const workHours = Math.round((endTime - startTime) / (1000 * 60 * 60) * 10) / 10;
+                order.workHours = workHours;
+            }
+            
+            saveLocalData();
+            stopWorkTimer();
+            renderOrders(orders);
+            
+            showAlert('✅ Zlecenie zakończone: ' + order.title, 'success');
+        }
+        
+        // Dodawanie nowego zlecenia
+        function addNewOrder() {
+            document.getElementById('addOrderModal').classList.remove('hidden');
+            document.getElementById('mainApp').classList.add('hidden');
+        }
+        
+        function cancelAddOrder() {
+            document.getElementById('addOrderModal').classList.add('hidden');
+            document.getElementById('mainApp').classList.remove('hidden');
+            clearOrderForm();
+        }
+        
+        function saveNewOrder() {
+            const title = document.getElementById('orderTitle').value;
+            const client = document.getElementById('orderClient').value;
+            const address = document.getElementById('orderAddress').value;
+            const priority = document.getElementById('orderPriority').value;
+            const notes = document.getElementById('orderNotes').value;
+            
+            if (!title || !client) {
+                alert('Wypełnij przynajmniej tytuł i klienta');
+                return;
+            }
+            
+            const newOrder = {
+                id: Date.now(),
+                title: title,
+                client: client,
+                address: address || 'Brak adresu',
+                priority: priority,
+                status: 'new',
+                notes: notes,
+                created: new Date().toISOString()
+            };
+            
+            orders.unshift(newOrder);
+            saveLocalData();
+            renderOrders(orders);
+            
+            document.getElementById('addOrderModal').classList.add('hidden');
+            document.getElementById('mainApp').classList.remove('hidden');
+            clearOrderForm();
+            
+            showAlert('✅ Nowe zlecenie zostało dodane', 'success');
+        }
+        
+        function clearOrderForm() {
+            document.getElementById('orderTitle').value = '';
+            document.getElementById('orderClient').value = '';
+            document.getElementById('orderAddress').value = '';
+            document.getElementById('orderPriority').value = 'medium';
+            document.getElementById('orderNotes').value = '';
+        }
+        
+        // Usuwanie zlecenia
+        function deleteOrder(orderId) {
+            if (confirm('Czy na pewno usunąć to zlecenie?')) {
+                orders = orders.filter(o => o.id !== orderId);
+                saveLocalData();
+                renderOrders(orders);
+                showAlert('🗑️ Zlecenie zostało usunięte', 'success');
+            }
+        }
+        
+        // Timer pracy
+        function startWorkTimer(orderTitle) {
+            workStartTime = new Date();
+            document.getElementById('currentOrderTitle').textContent = orderTitle;
+            document.getElementById('workTimer').classList.remove('hidden');
+            
+            workTimer = setInterval(updateTimer, 1000);
+        }
+        
+        function stopWorkTimer() {
+            if (workTimer) {
+                clearInterval(workTimer);
+                workTimer = null;
+                workStartTime = null;
+                document.getElementById('workTimer').classList.add('hidden');
+            }
+        }
+        
+        function updateTimer() {
+            if (!workStartTime) return;
+            
+            const now = new Date();
+            const diff = now - workStartTime;
+            const hours = Math.floor(diff / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+            
+            const display = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            document.getElementById('timerDisplay').textContent = display;
+        }
+        
+        // Test połączenia z serwerem
+        async function testConnection() {
+            const url = document.getElementById('serverUrl').value;
+            const resultEl = document.getElementById('connectionResult');
+            
+            if (!url) {
+                resultEl.innerHTML = '<div class="alert alert-info">Wprowadź adres serwera</div>';
+                return;
+            }
+            
+            API_BASE = url + '/api';
+            
+            try {
+                resultEl.innerHTML = '<div class="alert alert-info">🔄 Testowanie połączenia...</div>';
+                
+                const response = await fetch(`${API_BASE}/health`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    isOnlineMode = true;
+                    resultEl.innerHTML = '<div class="alert alert-success">✅ Połączenie udane! Możesz teraz synchronizować dane.<br><br><button class="btn" onclick="loginWithServer()">🔐 Zaloguj się z serwerem</button></div>';
+                    document.getElementById('connectionStatus').className = 'connection-status connected';
+                    document.getElementById('connectionStatus').textContent = '🌐 Połączono z serwerem';
+                } else {
+                    throw new Error('Błąd serwera');
+                }
+            } catch (error) {
+                isOnlineMode = false;
+                resultEl.innerHTML = '<div class="alert alert-info">❌ Nie można połączyć z serwerem. Pracujesz w trybie offline.</div>';
+                document.getElementById('connectionStatus').className = 'connection-status offline';
+                document.getElementById('connectionStatus').textContent = '📱 Tryb Offline';
+            }
+        }
+        
+        // Eksport danych
+        function exportData() {
+            const data = {
+                orders: orders,
+                technician: currentTechnician,
+                exported: new Date().toISOString()
+            };
+            
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `serwis-dane-${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            showAlert('📤 Dane zostały wyeksportowane', 'success');
+        }
+        
+        // Import danych
+        function importData() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = function(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const data = JSON.parse(e.target.result);
+                        if (data.orders) {
+                            orders = data.orders;
+                            saveLocalData();
+                            renderOrders(orders);
+                            showAlert('📥 Dane zostały zaimportowane', 'success');
+                        } else {
+                            alert('Nieprawidłowy format pliku');
+                        }
+                    } catch (error) {
+                        alert('Błąd odczytu pliku: ' + error.message);
+                    }
+                };
+                reader.readAsText(file);
+            };
+            input.click();
+        }
+        
+        // Odświeżenie zleceń
+        async function refreshOrders() {
+            if (isOnlineMode && currentTechnician && currentTechnician.isFromServer) {
+                try {
+                    showAlert('🔄 Pobieranie najnowszych zleceń z serwera...', 'info');
+                    
+                    const ordersResponse = await fetch(`${API_BASE}/desktop/orders/${currentTechnician.id}`);
+                    const serverOrders = await ordersResponse.json();
+                    
+                    if (ordersResponse.ok && serverOrders) {
+                        // Konwertuj zlecenia z serwera
+                        const convertedOrders = serverOrders.map(serverOrder => ({
+                            id: serverOrder.id,
+                            order_number: serverOrder.order_number,
+                            title: serverOrder.title,
+                            client: serverOrder.client_name,
+                            client_name: serverOrder.client_name,
+                            address: serverOrder.address,
+                            device: serverOrder.device_name,
+                            device_name: serverOrder.device_name,
+                            priority: serverOrder.priority,
+                            status: serverOrder.status === 'new' ? 'new' : 
+                                   serverOrder.status === 'in_progress' ? 'in_progress' : 
+                                   serverOrder.status === 'completed' ? 'completed' : 'new',
+                            notes: serverOrder.description || serverOrder.notes,
+                            description: serverOrder.description,
+                            startTime: serverOrder.actual_start_date,
+                            estimated_hours: serverOrder.estimated_hours,
+                            client_phone: serverOrder.client_phone
+                        }));
+                        
+                        // Zastąp zlecenia serwerowe
+                        orders = orders.filter(o => !o.id || o.id > 1000); // Zachowaj lokalne (ID > 1000)
+                        convertedOrders.forEach(serverOrder => {
+                            orders.push(serverOrder);
+                        });
+                        
+                        saveLocalData();
+                        renderOrders(orders);
+                        showAlert(`✅ Pobrano ${convertedOrders.length} zleceń z serwera`, 'success');
+                    } else {
+                        throw new Error('Błąd pobierania zleceń');
+                    }
+                } catch (error) {
+                    console.error('Refresh error:', error);
+                    showAlert('❌ Błąd podczas odświeżania zleceń z serwera', 'error');
+                    loadOrders(); // Fallback do lokalnych
+                }
+            } else {
+                loadOrders();
+                showAlert('🔄 Lista zleceń została odświeżona (tryb offline)', 'success');
+            }
+        }
+        
+        // Pomocnicze funkcje
+        function getStatusLabel(status) {
+            const labels = {
+                'new': 'Nowe',
+                'in_progress': 'W trakcie',
+                'completed': 'Zakończone'
+            };
+            return labels[status] || status;
+        }
+        
+        function getPriorityLabel(priority) {
+            const labels = {
+                'low': 'Niski',
+                'medium': 'Średni',
+                'high': 'Wysoki'
+            };
+            return labels[priority] || priority;
+        }
+
+        // Logowanie z serwerem i pobieranie zleceń
+        async function loginWithServer() {
+            if (!isOnlineMode) {
+                showAlert('❌ Brak połączenia z serwerem', 'error');
+                return;
+            }
+
+            const resultEl = document.getElementById('connectionResult');
+            
+            try {
+                // Pobierz listę techników
+                resultEl.innerHTML = '<div class="alert alert-info">🔄 Pobieranie listy techników...</div>';
+                
+                const techResponse = await fetch(`${API_BASE}/technicians`);
+                const technicians = await techResponse.json();
+                
+                if (!techResponse.ok || !technicians || technicians.length === 0) {
+                    throw new Error('Brak dostępnych techników');
+                }
+                
+                // Znajdź technika o loginie technik1
+                const technician = technicians.find(t => t.name === 'Jan Technik') || technicians[0];
+                
+                // Pobierz zlecenia dla technika
+                resultEl.innerHTML = '<div class="alert alert-info">🔄 Pobieranie zleceń...</div>';
+                
+                const ordersResponse = await fetch(`${API_BASE}/desktop/orders/${technician.id}`);
+                const serverOrders = await ordersResponse.json();
+                
+                if (ordersResponse.ok && serverOrders && serverOrders.length > 0) {
+                    // Konwertuj zlecenia z serwera do formatu lokalnego
+                    const convertedOrders = serverOrders.map(serverOrder => ({
+                        id: serverOrder.id,
+                        order_number: serverOrder.order_number,
+                        title: serverOrder.title,
+                        client: serverOrder.client_name,
+                        client_name: serverOrder.client_name,
+                        address: serverOrder.address,
+                        device: serverOrder.device_name,
+                        device_name: serverOrder.device_name,
+                        priority: serverOrder.priority,
+                        status: serverOrder.status === 'new' ? 'new' : 
+                               serverOrder.status === 'in_progress' ? 'in_progress' : 
+                               serverOrder.status === 'completed' ? 'completed' : 'new',
+                        notes: serverOrder.description || serverOrder.notes,
+                        description: serverOrder.description,
+                        startTime: serverOrder.actual_start_date,
+                        estimated_hours: serverOrder.estimated_hours,
+                        client_phone: serverOrder.client_phone
+                    }));
+                    
+                    // Scal z lokalnymi zleceniami (unikaj duplikatów)
+                    convertedOrders.forEach(serverOrder => {
+                        const existingIndex = orders.findIndex(o => o.id === serverOrder.id);
+                        if (existingIndex >= 0) {
+                            // Aktualizuj istniejące zlecenie
+                            orders[existingIndex] = { ...orders[existingIndex], ...serverOrder };
+                        } else {
+                            // Dodaj nowe zlecenie
+                            orders.push(serverOrder);
+                        }
+                    });
+                    
+                    // Ustaw technika jako zalogowanego
+                    currentTechnician = {
+                        id: technician.id,
+                        name: technician.name,
+                        isFromServer: true
+                    };
+                    
+                    saveLocalData();
+                    renderOrders(orders);
+                    
+                    resultEl.innerHTML = `<div class="alert alert-success">✅ Pobrano ${convertedOrders.length} zleceń z serwera!<br><br><button class="btn" onclick="hideServerConnect()">📱 Przejdź do aplikacji</button></div>`;
+                } else {
+                    resultEl.innerHTML = '<div class="alert alert-info">ℹ️ Brak zleceń przypisanych do tego technika.<br><br><button class="btn" onclick="hideServerConnect()">📱 Przejdź do aplikacji</button></div>';
+                }
+                
+            } catch (error) {
+                console.error('Login error:', error);
+                resultEl.innerHTML = '<div class="alert alert-danger">❌ Błąd logowania: ' + error.message + '</div>';
+            }
+        }
+        
+        function showAlert(message, type) {
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            alert.textContent = message;
+            
+            const container = document.querySelector('.container');
+            container.insertBefore(alert, container.firstChild);
+            
+            setTimeout(() => {
+                alert.remove();
+            }, 3000);
+        }
+        
+        // Edycja zlecenia (placeholder)
+        function editOrder(orderId) {
+            alert('Funkcja edycji w przygotowaniu');
+        }
+        
+    </script>
+</body>
+</html> 

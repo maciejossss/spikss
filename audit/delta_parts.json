@@ -1,0 +1,33 @@
+{
+  "onlyRemote": [],
+  "onlyLocal": [
+    {
+      "id": 97,
+      "name": "Elektroda Jonizacyjna 19KW 7834038",
+      "manufacturer": "Viessmann",
+      "category": "Części Viessmann",
+      "part_number": "6815",
+      "device_id": null,
+      "updated_at": "2025-10-24T09:48:51.641Z"
+    },
+    {
+      "id": 99,
+      "name": "elektroda jonizacyjna 13/19KW 783644",
+      "manufacturer": "Viessmann",
+      "category": "Części Viessmann",
+      "part_number": "9888",
+      "device_id": null,
+      "updated_at": "2025-10-24T09:49:05.853Z"
+    },
+    {
+      "id": 98,
+      "name": "elektroda jonizacyjna 26/35Kw 7834233",
+      "manufacturer": "Viessmann",
+      "category": "Części Viessmann",
+      "part_number": "7169",
+      "device_id": null,
+      "updated_at": "2025-10-24T09:49:15.505Z"
+    }
+  ],
+  "conflicts": []
+}

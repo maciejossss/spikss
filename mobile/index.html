@@ -1,58 +1,344 @@
 <!DOCTYPE html>
 <html lang="pl">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Serwis Mobile</title>
-  
-  <!-- PWA Manifest -->
-  <link rel="manifest" href="/manifest.json">
-  <meta name="theme-color" content="#3b82f6">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="Serwis Mobile">
-  
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  
-  <!-- Font Awesome -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-  
-  <!-- Vue.js -->
-  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-  
-  <style>
-    /* Mobilny interfejs - duże klikowalne elementy */
-    .mobile-tile {
-      min-height: 80px;
-      transition: all 0.2s ease;
-    }
-    .mobile-tile:active {
-      transform: scale(0.95);
-      background-color: #f3f4f6;
-    }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Serwis Mobilny</title>
+    <meta name="theme-color" content="#3b82f6">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Serwis Mobilny">
     
-    /* Prevent zoom on double tap */
-    * {
-      touch-action: manipulation;
-    }
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    /* Custom scrollbar for mobile */
-    ::-webkit-scrollbar {
-      width: 4px;
-    }
-    ::-webkit-scrollbar-track {
-      background: #f1f1f1;
-    }
-    ::-webkit-scrollbar-thumb {
-      background: #c1c1c1;
-      border-radius: 4px;
-    }
-  </style>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Vue.js -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    
+    <!-- Manifest -->
+    <link rel="manifest" href="manifest.json">
+    
+    <style>
+        .fade-enter-active, .fade-leave-active {
+            transition: opacity 0.3s;
+        }
+        .fade-enter-from, .fade-leave-to {
+            opacity: 0;
+        }
+    </style>
 </head>
-<body class="bg-gray-50">
-  <div id="app"></div>
-  
-  <script src="/js/app.js"></script>
+<body class="bg-gray-100">
+    <div id="app">
+        <!-- Loading State -->
+        <div v-if="loading" class="flex items-center justify-center min-h-screen">
+            <div class="text-center">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                <p class="mt-4 text-gray-600">Ładowanie...</p>
+            </div>
+        </div>
+
+        <!-- Error State -->
+        <div v-else-if="error" class="flex items-center justify-center min-h-screen p-4">
+            <div class="text-center">
+                <i class="fas fa-exclamation-triangle text-red-500 text-4xl mb-4"></i>
+                <h2 class="text-xl font-semibold text-gray-800 mb-2">Błąd połączenia</h2>
+                <p class="text-gray-600 mb-4">{{ error }}</p>
+                <button @click="loadData" class="bg-blue-600 text-white px-4 py-2 rounded-lg">
+                    Spróbuj ponownie
+                </button>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div v-else class="min-h-screen">
+            <!-- Header -->
+            <header class="bg-blue-600 text-white p-4 shadow-lg">
+                <div class="flex items-center justify-between">
+                    <h1 class="text-xl font-bold">
+                        <i class="fas fa-tools mr-2"></i>
+                        Serwis Mobilny
+                    </h1>
+                    <button @click="showServiceForm = !showServiceForm" class="bg-blue-700 px-3 py-1 rounded-lg text-sm">
+                        <i class="fas fa-plus mr-1"></i>
+                        Zgłoś serwis
+                    </button>
+                </div>
+            </header>
+
+            <!-- Service Request Form -->
+            <div v-if="showServiceForm" class="bg-white p-4 border-b">
+                <h3 class="text-lg font-semibold mb-4">
+                    <i class="fas fa-clipboard-list mr-2"></i>
+                    Zgłoszenie serwisowe
+                </h3>
+                <form @submit.prevent="submitServiceRequest" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Imię i nazwisko</label>
+                        <input v-model="serviceForm.name" type="text" required 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Telefon</label>
+                        <input v-model="serviceForm.phone" type="tel" required 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Adres</label>
+                        <textarea v-model="serviceForm.address" required 
+                                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" rows="2"></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Opis problemu</label>
+                        <textarea v-model="serviceForm.description" required 
+                                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" rows="3"></textarea>
+                    </div>
+                    <div class="flex space-x-2">
+                        <button type="submit" class="flex-1 bg-green-600 text-white py-2 px-4 rounded-lg">
+                            <i class="fas fa-paper-plane mr-2"></i>
+                            Wyślij zgłoszenie
+                        </button>
+                        <button type="button" @click="showServiceForm = false" 
+                                class="px-4 py-2 border border-gray-300 rounded-lg">
+                            Anuluj
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Technicians View -->
+            <div v-if="currentView === 'technicians'" class="p-4">
+                <h2 class="text-2xl font-bold mb-4">
+                    <i class="fas fa-users mr-2"></i>
+                    Technicy
+                </h2>
+                <div class="grid gap-4">
+                    <div v-for="technician in technicians" :key="technician.id" 
+                         @click="selectTechnician(technician)"
+                         class="bg-white p-4 rounded-lg shadow-md border-l-4 border-blue-500 cursor-pointer hover:shadow-lg transition-shadow">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h3 class="text-lg font-semibold">{{ technician.name }}</h3>
+                                <p class="text-gray-600">ID: {{ technician.id }}</p>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-sm text-gray-500">Zleceń</div>
+                                <div class="text-lg font-bold text-blue-600">{{ getTechnicianOrderCount(technician.id) }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Orders View -->
+            <div v-if="currentView === 'orders'" class="p-4">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-2xl font-bold">
+                        <i class="fas fa-clipboard-list mr-2"></i>
+                        Zlecenia - {{ selectedTechnician.name }}
+                    </h2>
+                    <button @click="loadOrders" class="bg-blue-600 text-white p-2 rounded-lg">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+                
+                <div v-if="orders.length === 0" class="text-center py-8">
+                    <i class="fas fa-inbox text-gray-400 text-4xl mb-4"></i>
+                    <p class="text-gray-600">Brak zleceń dla tego technika</p>
+                </div>
+                
+                <div v-else class="grid gap-4">
+                    <div v-for="order in orders" :key="order.id" 
+                         @click="selectOrder(order)"
+                         class="bg-white p-4 rounded-lg shadow-md border-l-4 border-green-500 cursor-pointer hover:shadow-lg transition-shadow">
+                        
+                        <!-- Order Header -->
+                        <div class="flex items-center justify-between mb-3">
+                            <div>
+                                <h3 class="text-lg font-semibold">Zlecenie #{{ order.order_number }}</h3>
+                                <p class="text-sm text-gray-500">ID: {{ order.id }}</p>
+                            </div>
+                            <div class="text-right">
+                                <span :class="getStatusColor(order.status)" class="px-2 py-1 rounded-full text-xs font-medium">
+                                    {{ getStatusText(order.status) }}
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Client Information Section -->
+                        <div class="mb-4 p-3 bg-blue-50 rounded-lg">
+                            <h4 class="font-semibold text-blue-800 mb-2">
+                                <i class="fas fa-user mr-1"></i>
+                                Dane klienta
+                            </h4>
+                            <div class="space-y-1 text-sm">
+                                <div v-if="order.client_name">
+                                    <span class="font-medium">Imię i nazwisko:</span> {{ order.client_name }}
+                                </div>
+                                <div v-if="order.client_phone">
+                                    <span class="font-medium">Telefon:</span> {{ order.client_phone }}
+                                </div>
+                                <div v-if="order.client_address">
+                                    <span class="font-medium">Adres:</span> {{ order.client_address }}
+                                </div>
+                                <div v-if="order.client_email">
+                                    <span class="font-medium">Email:</span> {{ order.client_email }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Device Information Section -->
+                        <div class="mb-3 p-3 bg-green-50 rounded-lg">
+                            <h4 class="font-semibold text-green-800 mb-2">
+                                <i class="fas fa-cog mr-1"></i>
+                                Urządzenie
+                            </h4>
+                            <div class="space-y-1 text-sm">
+                                <div v-if="order.device_name">
+                                    <span class="font-medium">Nazwa:</span> {{ order.device_name }}
+                                </div>
+                                <div v-if="order.device_brand">
+                                    <span class="font-medium">Marka:</span> {{ order.device_brand }}
+                                </div>
+                                <div v-if="order.device_model">
+                                    <span class="font-medium">Model:</span> {{ order.device_model }}
+                                </div>
+                                <div v-if="order.device_serial">
+                                    <span class="font-medium">Numer seryjny:</span> {{ order.device_serial }}
+                                </div>
+                                <div v-if="order.device_warranty_status">
+                                    <span class="font-medium">Gwarancja:</span> {{ order.device_warranty_status }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Order Details -->
+                        <div class="text-sm text-gray-600">
+                            <div v-if="order.description">
+                                <span class="font-medium">Opis:</span> {{ order.description }}
+                            </div>
+                            <div v-if="order.scheduled_date">
+                                <span class="font-medium">Data planowana:</span> {{ formatDate(order.scheduled_date) }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Order Detail View -->
+            <div v-if="currentView === 'order-detail'" class="p-4">
+                <div class="mb-4">
+                    <button @click="currentView = 'orders'" class="text-blue-600 mb-4">
+                        <i class="fas fa-arrow-left mr-2"></i>
+                        Powrót do listy
+                    </button>
+                </div>
+                
+                <div class="bg-white rounded-lg shadow-md overflow-hidden">
+                    <!-- Order Header -->
+                    <div class="bg-blue-600 text-white p-4">
+                        <h2 class="text-xl font-bold">Zlecenie #{{ selectedOrder.order_number }}</h2>
+                        <p class="text-blue-100">ID: {{ selectedOrder.id }}</p>
+                        <span :class="getStatusColor(selectedOrder.status)" class="inline-block mt-2 px-3 py-1 rounded-full text-sm font-medium">
+                            {{ getStatusText(selectedOrder.status) }}
+                        </span>
+                    </div>
+
+                    <!-- Client Information -->
+                    <div class="p-4 border-b">
+                        <h3 class="text-lg font-semibold mb-3 text-blue-800">
+                            <i class="fas fa-user mr-2"></i>
+                            Dane klienta
+                        </h3>
+                        <div class="space-y-2">
+                            <div v-if="selectedOrder.client_name">
+                                <span class="font-medium">Imię i nazwisko:</span> {{ selectedOrder.client_name }}
+                            </div>
+                            <div v-if="selectedOrder.client_phone">
+                                <span class="font-medium">Telefon:</span> {{ selectedOrder.client_phone }}
+                            </div>
+                            <div v-if="selectedOrder.client_address">
+                                <span class="font-medium">Adres:</span> {{ selectedOrder.client_address }}
+                            </div>
+                            <div v-if="selectedOrder.client_email">
+                                <span class="font-medium">Email:</span> {{ selectedOrder.client_email }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Device Information -->
+                    <div class="p-4 border-b">
+                        <h3 class="text-lg font-semibold mb-3 text-green-800">
+                            <i class="fas fa-cog mr-2"></i>
+                            Urządzenie
+                        </h3>
+                        <div class="space-y-2">
+                            <div v-if="selectedOrder.device_name">
+                                <span class="font-medium">Nazwa:</span> {{ selectedOrder.device_name }}
+                            </div>
+                            <div v-if="selectedOrder.device_brand">
+                                <span class="font-medium">Marka:</span> {{ selectedOrder.device_brand }}
+                            </div>
+                            <div v-if="selectedOrder.device_model">
+                                <span class="font-medium">Model:</span> {{ selectedOrder.device_model }}
+                            </div>
+                            <div v-if="selectedOrder.device_serial">
+                                <span class="font-medium">Numer seryjny:</span> {{ selectedOrder.device_serial }}
+                            </div>
+                            <div v-if="selectedOrder.device_warranty_status">
+                                <span class="font-medium">Gwarancja:</span> {{ selectedOrder.device_warranty_status }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Order Details -->
+                    <div class="p-4 border-b">
+                        <h3 class="text-lg font-semibold mb-3">
+                            <i class="fas fa-clipboard-list mr-2"></i>
+                            Szczegóły zlecenia
+                        </h3>
+                        <div class="space-y-2">
+                            <div v-if="selectedOrder.title">
+                                <span class="font-medium">Tytuł:</span> {{ selectedOrder.title }}
+                            </div>
+                            <div v-if="selectedOrder.description">
+                                <span class="font-medium">Opis:</span> {{ selectedOrder.description }}
+                            </div>
+                            <div v-if="selectedOrder.scheduled_date">
+                                <span class="font-medium">Data planowana:</span> {{ formatDate(selectedOrder.scheduled_date) }}
+                            </div>
+                            <div v-if="selectedOrder.priority">
+                                <span class="font-medium">Priorytet:</span> {{ selectedOrder.priority }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="p-4">
+                        <h3 class="text-lg font-semibold mb-3">
+                            <i class="fas fa-tasks mr-2"></i>
+                            Akcje
+                        </h3>
+                        <div class="grid grid-cols-2 gap-3">
+                            <button @click="updateOrderStatus('in_progress')" 
+                                    class="bg-yellow-600 text-white py-2 px-4 rounded-lg">
+                                <i class="fas fa-play mr-2"></i>
+                                Rozpocznij
+                            </button>
+                            <button @click="updateOrderStatus('completed')" 
+                                    class="bg-green-600 text-white py-2 px-4 rounded-lg">
+                                <i class="fas fa-check mr-2"></i>
+                                Zakończ
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/app.js"></script>
 </body>
 </html> 

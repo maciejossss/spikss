@@ -1,0 +1,70 @@
+[
+  {
+    "id": "ISS-001",
+    "file": "desktop/src/electron/api-server.js",
+    "line": 1844,
+    "type": "bug",
+    "description": "ReferenceError w autoExporter: użyto clientEmailRow/deviceSerialRow bez definicji.",
+    "reproduction": "Uruchom auto-export (timer po starcie). Funkcja odwołuje się do niezdefiniowanych zmiennych i rzuca wyjątek.",
+    "repeatability": "zawsze",
+    "priority": "wysoki",
+    "recommended_fix": "Pobrać wartości lokalnie (SELECT), jak w /api/railway/export-now, albo usunąć te pola z payloadu. Dodać test jednostkowy dla autoExporter."
+  },
+  {
+    "id": "ISS-002",
+    "file": "desktop/src/electron/api-server.js",
+    "line": 1099,
+    "type": "security",
+    "description": "Endpoint /api/debug/execute-sql umożliwia dowolne wykonanie SQL bez autoryzacji.",
+    "reproduction": "POST do /api/debug/execute-sql z dowolnym SQL.",
+    "repeatability": "zawsze",
+    "priority": "blokujący",
+    "recommended_fix": "Wyłączyć w produkcji, dodać wymóg nagłówka z tajnym kluczem i ograniczyć do SELECT; logować i rate-limitować."
+  },
+  {
+    "id": "ISS-003",
+    "file": "desktop/src/electron/api-server.js",
+    "line": 23,
+    "type": "security",
+    "description": "CORS: echo Origin + credentials=true dla wszystkich domen (ryzyko CSRF/eksfiltracji).",
+    "reproduction": "Żądanie z dowolnej domeny ustawia ACAO na wartość Origin i zezwala na cookies/credentials.",
+    "repeatability": "zawsze",
+    "priority": "wysoki",
+    "recommended_fix": "Whitelist dozwolonych originów (Railway URL i localhost), inne 403. Wyłączyć credentials jeśli niepotrzebne."
+  },
+  {
+    "id": "ISS-004",
+    "file": "desktop/src/electron/main.js",
+    "line": 685,
+    "type": "security",
+    "description": "IPC 'users-get-pin' zwraca odszyfrowany PIN (ujawnienie sekretu).",
+    "reproduction": "Wywołanie IPC 'users-get-pin' zwraca jawny PIN.",
+    "repeatability": "zawsze",
+    "priority": "blokujący",
+    "recommended_fix": "Nie przechowywać/dekryptować PIN-u w postaci jawnej. Wyłączyć endpoint lub ograniczyć go do admina i zwracać tylko maskowane dane. Rozważyć wyłącznie hash."
+  },
+  {
+    "id": "ISS-005",
+    "file": "desktop/src/electron/api-server.js",
+    "line": 596,
+    "type": "security",
+    "description": "Serwowanie plików po ścieżce z DB bez walidacji katalogu bazowego (ryzyko path traversal po kompromitacji DB).",
+    "reproduction": "Wstaw do DB ścieżkę spoza katalogu dozwolonego i pobierz przez /api/desktop/files/:id.",
+    "repeatability": "zawsze (przy złych danych)",
+    "priority": "średni",
+    "recommended_fix": "Walidować, że plik jest w dozwolonym root (np. userData/device-files), sprawdzać rozszerzenia/MIME, użyć res.sendFile z root i denyOutside."
+  },
+  {
+    "id": "ISS-006",
+    "file": "desktop/src/electron/api-server.js",
+    "line": 102,
+    "type": "perf",
+    "description": "Prosty rate-limit w Map nie czyści starych kluczy (możliwy wzrost pamięci).",
+    "reproduction": "Stały ruch z wielu IP/minut tworzy coraz więcej wpisów.",
+    "repeatability": "zawsze",
+    "priority": "niski",
+    "recommended_fix": "Okresowo usuwać wpisy z poprzednich minut lub użyć gotowej biblioteki z TTL."
+  }
+]
+
+

@@ -1,0 +1,182 @@
+1. Architektura – stan faktyczny
+
+1.1. Desktop uruchamia:
+– UI (Vue 3) na porcie 5173,
+– backend Express na 127.0.0.1:5174,
+– SQLite w katalogu użytkownika,
+– lokalny storage plików device-files/,
+– Electron spina wszystko w jednym procesie.
+1.2. Railway to osobny Express + PostgreSQL.
+1.3. Struktura PostgreSQL = struktura SQLite odwzorowana ręcznymi migracjami (brak jednego źródła prawdy).
+1.4. Synchronizacja odbywa się co 30 s i polega na: importowaniu zleceń oraz wypychaniu zmian (użytkownicy/klienci/urządzenia/zlecenia).
+1.5. Retry istnieje, ale nie ma pełnej polityki kolejki (brak QUEUE PAUSED / QUEUE RESUMED).
+1.6. PWA występuje w kilku wersjach:
+– public/ działa z lokalnym API,
+– desktop/mobile-app/index.html ma na stałe wpisany API Railway,
+– fallback istnieje, ale ręczny.
+1.7. Pliki trafiają do device-files/ → BAZA_ZDJEC → Railway (best effort).
+1.8. SQLite przebudowuje schemat przy starcie (PRAGMA WAL + tworzenie tabel).
+1.9. Railway musi polegać wyłącznie na migracjach — brak automatu wyrównującego schemat.
+
+2. Analiza przed zmianą
+
+2.1. Zawsze reprodukuję błąd.
+2.2. Źródło określam w kolejności: desktop UI → desktop backend → Railway → PWA → DB.
+2.3. Logi analizuję w kolejności: Electron → 5174 → Railway → przeglądarka/PWA.
+2.4. Nie ruszam kodu bez potwierdzonej przyczyny.
+2.5. Każda analiza uwzględnia, czy problem wynika z:
+– niejednolitego schematu DB,
+– różnic API (lokalne vs Railway),
+– retry w sync.
+2.6. Przed zmianą ustalam: dev vs prod, konsekwencje dla Railway i desktopu.
+2.7. Zmiana wpływająca na prod musi być zaplanowana jak wdrożenie (restart + ewentualne okno).
+
+3. Projektowanie zmian
+
+3.1. Piszę: co zmieniam, gdzie i dlaczego.
+3.2. Oceniam ryzyko osobno dla: SQLite, PostgreSQL, PWA i sync.
+3.3. W sync zawsze planuję kolejność: Railway → desktop backend → UI.
+3.4. Migracje projektuję tak, aby działały, nawet gdy strukturę SQLite poprawił wcześniej Electron.
+3.5. Po każdej zmianie sprawdzam spójność modeli ręcznie, bo nie ma jednego źródła prawdy.
+3.6. Zmiany dotyczące PWA oceniam pod kątem: czy mobilka nadal odpina się od lokalnego API.
+
+4. Kodowanie
+
+4.1. Jedna funkcja = jedno zadanie.
+4.2. Waliduję wejście/wyjście.
+4.3. Logika biznesowa poza UI.
+4.4. Nazwy angielskie, czytelne.
+4.5. API zawsze w try/catch.
+4.6. Brak duplikacji logiki między desktop backendem a Railway — jeśli jest, przenoszę do wspólnych utili.
+
+5. Backend Desktop (Express 5174)
+
+5.1. Zwracam JSON + błędy w formacie { error }.
+5.2. Każdy endpoint waliduje dane.
+5.3. Każdy endpoint ma try/catch.
+5.4. Nie wypisuję stack trace do UI.
+5.5. Copy-chain plików (device-files → BAZA_ZDJEC) zawsze ma ochronę przed brakiem katalogu.
+
+6. Backend Railway
+
+6.1. Modele = odbicie SQLite przez migracje (świadomie utrzymywane).
+6.2. Nie zakładam automatycznego wyrównania schematu — zawsze sprawdzam migracje.
+6.3. W każdej zmianie DB sprawdzam, czy desktop poradzi sobie z inną wersją schematu.
+6.4. API zwraca spójne formaty.
+6.5. Logi Railway są minimalne — nie zawierają Agent/Origin w trybie debug domyślnym.
+
+7. Bazy danych
+
+7.1. SQLite przebudowuje schemat przy starcie — uwzględniam to przy zmianach.
+7.2. Railway wymaga migracji — każda zmiana ma trafić do migrate.js.
+7.3. Nie ma jednego źródła prawdy — dlatego zmiany struktury muszą być projektowane tak, by nie rozjechać się między SQLite a PostgreSQL.
+7.4. Daty w ISO.
+7.5. Importy używają COALESCE i fallback.
+
+8. Synchronizacja – STAN REALNY + ZASADY
+
+8.1. Sync działa co 30 s.
+8.2. Importowane są zlecenia; eksportowani klienci/urządzenia/zlecenia/pending.
+8.3. Retry istnieje, ale nie ma formalnej kolejki.
+8.4. Ponieważ nie mamy QUEUE PAUSED/RESUMED w kodzie → reguła brzmi:
+→ błędy w sync muszą być jawnie logowane, a dalsze próby ograniczone (max X prób).
+8.5. „Cichnięcie” sync = błąd krytyczny → musi być logowany i monitorowany.
+8.6. Każdy błąd 4xx/5xx wymaga dopisania logu:
+
+SYNC ERROR <kod> <endpoint> (attempt N of M)
+
+
+8.7. Gdy retry dojdzie do limitu – log:
+
+SYNC RETRY STOPPED (max attempts reached)
+
+
+8.8. Ręczne wznowienie sync = ręczne uruchomienie procesu sync w UI lub restarcie programu.
+8.9. Ręczne wznowienie musi mieć log:
+
+SYNC RESUMED manually by <user/timestamp>
+
+
+8.10. Dopóki system nie ma prawdziwej kolejki — to reguła obowiązująca.
+
+9. Pliki
+
+9.1. Pliki trafiają do device-files/.
+9.2. Potem kopiowane do BAZA_ZDJEC (może się rozjechać → loguję każde niepowodzenie).
+9.3. Upload jest best effort → nigdy nie blokuje reszty systemu.
+9.4. MIME waliduję po rozszerzeniu i typie.
+9.5. Przy błędzie w ścieżkach katalogów loguję:
+
+FILE WARNING <path> missing / permission denied
+
+10. PWA
+
+10.1. public/ używa lokalnego API (w praktyce działa).
+10.2. mobilka w desktop/mobile-app/index.html zawsze używa Railway (to niezgodne z zasadą 10.3, ale stan faktyczny).
+10.3. Rzeczywista zasada brzmi:
+→ jeśli edytuję mobilkę, sprawdzam, czy nie nadpisuję API lokalnym 5174.
+10.4. fallback (app-localhost.js) istnieje, ale wymaga ręcznej aktywacji — pamiętam o tym w testach.
+10.5. Konsola ma być czysta.
+
+11. Testy – STAN REALNY + ZASADY
+
+11.1. Nie ma automatycznych testów → wszystkie poniższe kroki są ręczne.
+11.2. Każda zmiana wymaga ręcznego przejścia flow:
+– klient → urządzenie
+– zlecenie → pending
+– sync → Railway
+– PWA → wyświetlenie danych
+11.3. Testuję upload plików w device-files → BAZA_ZDJEC → Railway.
+11.4. Testuję oba warianty PWA (public/ i mobile-app).
+11.5. Testuję retry w sync:
+– czy nie próbuje w nieskończoność,
+– czy zatrzymuje się po limitach,
+– czy nie wznawia się sam.
+11.6. Testuję, czy po błędach sync nie nastąpiło samoczynne „wznowienie” retry.
+11.7. Jeśli ręcznie wznowiłem sync → muszę zobaczyć wpis „SYNC RESUMED manually ...”.
+11.8. Testuję zgodność schematu:
+– czy SQLite odpalił się poprawnie,
+– czy migracje Railway są w tej samej wersji.
+
+12. Regresja
+
+12.1. Zmiana w module A → zawsze testuję B/C/D.
+12.2. Zmiana migracji → testuję SQLite i Postgres.
+12.3. Zmiana sync → testuję flow w obie strony.
+12.4. Jeśli zmieniam obsługę plików → testuję device-files, BAZA_ZDJEC i Railway.
+12.5. Testuję PWA w obu wariantach.
+12.6. Nie polegam na automatach — wszystko manualnie.
+
+13. Stabilność
+
+13.1. System ma działać nawet przy rozjazdach schematów.
+13.2. Migracje muszą być idempotentne.
+13.3. Sync musi się zatrzymywać, a nie „wisieć cicho”.
+13.4. Desktop ma być odporny na braki katalogów plików.
+13.5. PWA ma mieć zawsze działające API (lokalne lub Railway).
+
+14. Bezpieczeństwo
+
+14.1. Stosuję Helmet i limity.
+14.2. PIN-y szyfrowane AES-256-GCM.
+14.3. Nie loguję danych wrażliwych.
+14.4. API mobilne ograniczam minimalnymi logami (bez zbędnych Agent/Origin).
+
+15. Dokumentacja i komunikacja
+
+15.1. Każdą zmianę opisuję (co, gdzie, dlaczego).
+15.2. Zmiany prod → oznaczone osobno.
+15.3. Zmiany w migracjach → wpisuję w changelog DB.
+15.4. Zmiany w sync → opisuję dokładnie retry/limity.
+15.5. Notuję różnice API: lokalne vs Railway vs mobilka.
+
+16. Meta-zasada
+
+16.1. Stabilność ponad wszystko — dostosowana do realnej architektury.
+16.2. Bezpieczeństwo: dane nie mogą zniknąć/rozjechać się.
+16.3. Sync nie może działać „po cichu”.
+16.4. Schematy DB muszą być utrzymywane świadomie (ręczne źródło prawdy).
+16.5. PWA musi mieć przewidywalne zachowanie.
+16.6. Każda zmiana jest świadoma, kontrolowana i testowana ręcznie.---
+alwaysApply: true
+---

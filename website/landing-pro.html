@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Serwis Palników i Kotłów — Portal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: { primary: { 600: '#2563eb' }, accent: { 500: '#0ea5e9' } },
+            fontFamily: { inter: ['Inter','ui-sans-serif','system-ui'] },
+          }
+        }
+      }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+      html,body{height:100%}
+      body{font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,'Helvetica Neue',Arial}
+    </style>
+  </head>
+  <body class="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 text-slate-800 overflow-hidden">
+    <!-- Decorative blur -->
+    <div class="pointer-events-none absolute -top-24 -right-24 h-72 w-72 rounded-full bg-primary-600/10 blur-3xl"></div>
+    <div class="pointer-events-none absolute -bottom-24 -left-24 h-80 w-80 rounded-full bg-accent-500/10 blur-3xl"></div>
+
+    <!-- NAV -->
+    <header class="max-w-7xl mx-auto px-6 pt-5 flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <div class="h-8 w-8 rounded-md bg-primary-600"></div>
+        <div class="font-semibold tracking-tight">Serwis Palników i Kotłów</div>
+      </div>
+      <nav class="flex items-center gap-2">
+        <a href="#" class="px-3 py-2 text-sm rounded-md border border-slate-300/60 bg-white hover:shadow-sm">Logowanie klienta</a>
+        <a href="#" class="px-3 py-2 text-sm rounded-md border border-slate-300/60 bg-white hover:shadow-sm">Logowanie serwisanta</a>
+      </nav>
+    </header>
+
+    <!-- HERO -->
+    <main class="max-w-6xl mx-auto px-6 h-[88vh] grid content-center">
+      <section class="text-center">
+        <h1 class="text-3xl md:text-5xl font-semibold tracking-tight">Profesjonalny serwis palników i kotłów</h1>
+        <p class="mt-3 text-slate-600 md:text-lg">Zgłoszenia, przeglądy, instalacje — szybko i przejrzyście, w jednym miejscu.</p>
+
+        <div class="mt-6 flex items-center justify-center gap-3">
+          <a href="#" class="px-5 py-3 rounded-lg bg-primary-600 text-white hover:brightness-105">Portal klienta</a>
+          <a href="#" class="px-5 py-3 rounded-lg bg-white border border-slate-300/60 hover:shadow-sm">Panel serwisanta</a>
+        </div>
+
+        <!-- Services compact chips -->
+        <div class="mt-10 grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 justify-items-center">
+          <div class="w-full max-w-[260px] rounded-xl bg-white border border-slate-200 p-4 text-left">
+            <div class="flex items-center gap-2 mb-2">
+              <span class="h-7 w-7 rounded-md bg-sky-100 text-sky-600 grid place-content-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a7 7 0 0 0-7 7v2H3a1 1 0 1 0 0 2h2v2a7 7 0 0 0 14 0v-2h2a1 1 0 1 0 0-2h-2V9a7 7 0 0 0-7-7Z"/></svg>
+              </span>
+              <div class="font-medium">Instalacje wod‑kan</div>
+            </div>
+            <div class="text-sm text-slate-600">Montaż i serwis instalacji.</div>
+          </div>
+          <div class="w-full max-w-[260px] rounded-xl bg-white border border-slate-200 p-4 text-left">
+            <div class="flex items-center gap-2 mb-2">
+              <span class="h-7 w-7 rounded-md bg-blue-100 text-blue-600 grid place-content-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M20 8H4a2 2 0 0 0-2 2v8h20v-8a2 2 0 0 0-2-2ZM7 6h10l1-2H6l1 2Z"/></svg>
+              </span>
+              <div class="font-medium">Instalacje CO</div>
+            </div>
+            <div class="text-sm text-slate-600">Grzejniki i podłogówka.</div>
+          </div>
+          <div class="w-full max-w-[260px] rounded-xl bg-white border border-slate-200 p-4 text-left">
+            <div class="flex items-center gap-2 mb-2">
+              <span class="h-7 w-7 rounded-md bg-rose-100 text-rose-600 grid place-content-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3c2 2.5 3 4.833 3 7a3 3 0 1 1-6 0c0-2.167 1-4.5 3-7Z"/></svg>
+              </span>
+              <div class="font-medium">Instalacje gazowe</div>
+            </div>
+            <div class="text-sm text-slate-600">Przyłącza, odbiory, przeglądy.</div>
+          </div>
+          <div class="w-full max-w-[260px] rounded-xl bg-white border border-slate-200 p-4 text-left">
+            <div class="flex items-center gap-2 mb-2">
+              <span class="h-7 w-7 rounded-md bg-purple-100 text-purple-600 grid place-content-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M8 3h8l1 4H7l1-4Zm-2 6h12l-1.5 10h-9L6 9Z"/></svg>
+              </span>
+              <div class="font-medium">Serwis palników</div>
+            </div>
+            <div class="text-sm text-slate-600">Regulacje i naprawy.</div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </body>
+  </html>
+
+

@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📱 Serwis Mobilny - Prosta wersja</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: Arial, sans-serif; 
+            background: #f8fafc; 
+            line-height: 1.6; 
+            padding: 20px;
+        }
+        .container { max-width: 600px; margin: 0 auto; }
+        .card { 
+            background: white; 
+            border-radius: 8px; 
+            padding: 20px; 
+            margin: 20px 0; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1); 
+        }
+        .btn { 
+            background: #3b82f6; 
+            color: white; 
+            border: none; 
+            padding: 12px 20px; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            font-size: 16px;
+            width: 100%;
+            margin: 10px 0;
+        }
+        .btn:hover { background: #2563eb; }
+        .btn.success { background: #10b981; }
+        .btn.danger { background: #ef4444; }
+        .hidden { display: none; }
+        .order-item { 
+            border: 1px solid #e5e7eb; 
+            border-radius: 6px; 
+            padding: 15px; 
+            margin: 10px 0;
+            background: #fafafa;
+        }
+        .order-number {
+            background: #3b82f6;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            float: right;
+        }
+        .status { 
+            padding: 4px 8px; 
+            border-radius: 4px; 
+            font-size: 12px; 
+            font-weight: bold;
+        }
+        .status.new { background: #fef3c7; color: #92400e; }
+        .status.in_progress { background: #dbeafe; color: #1e40af; }
+        .status.completed { background: #d1fae5; color: #065f46; }
+        .alert { padding: 12px; border-radius: 6px; margin: 10px 0; }
+        .alert.success { background: #d1fae5; color: #065f46; }
+        .alert.error { background: #fee2e2; color: #991b1b; }
+        .alert.info { background: #dbeafe; color: #1e40af; }
+        input, select { 
+            width: 100%; 
+            padding: 10px; 
+            border: 1px solid #d1d5db; 
+            border-radius: 6px; 
+            margin: 5px 0;
+        }
+        h1 { color: #1f2937; margin-bottom: 20px; text-align: center; }
+        h2 { color: #374151; margin-bottom: 15px; }
+        h3 { color: #4b5563; margin: 0 0 10px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📱 Serwis Mobilny</h1>
+        
+        <!-- Status połączenia -->
+        <div id="connectionStatus" class="alert info">
+            🔄 Sprawdzanie połączenia...
+        </div>
+        
+        <!-- Szczegółowa diagnostyka -->
+        <div id="diagnostics" class="card hidden">
+            <h3>🔍 Diagnostyka Połączenia</h3>
+            <div id="diagnosticsContent"></div>
+            <button class="btn" onclick="runDetailedDiagnostics()">🔍 Sprawdź Szczegółowo</button>
+        </div>
+        
+        <!-- Ekran logowania -->
+        <div id="loginScreen" class="card">
+            <h2>👨‍🔧 Logowanie Technika</h2>
+            
+            <!-- Logowanie lokalne -->
+            <div>
+                <h3>Tryb Offline</h3>
+                <select id="localTechnician">
+                    <option value="">-- Wybierz technika --</option>
+                    <option value="1">Jan Kowalski</option>
+                    <option value="2">Maria Nowak</option>
+                    <option value="3">Piotr Wiśniewski</option>
+                </select>
+                <button class="btn" onclick="loginLocal()">🔑 Zaloguj Lokalnie</button>
+            </div>
+            
+            <hr style="margin: 20px 0;">
+            
+            <!-- Logowanie z serwerem -->
+            <div>
+                <h3>Logowanie z Serwerem</h3>
+                <input type="text" id="serverUrl" value="http://localhost:5174" placeholder="Adres serwera">
+                <button class="btn" onclick="connectToServer()">🌐 Połącz z Serwerem</button>
+                <button class="btn" style="background: #6b7280;" onclick="checkConnectionWithRetry()">🔍 Sprawdź Połączenie</button>
+                <div id="serverResult"></div>
+            </div>
+        </div>
+        
+        <!-- Główna aplikacja -->
+        <div id="mainApp" class="hidden">
+            <div class="card">
+                <h2 id="welcomeMessage">👋 Witaj!</h2>
+                <button class="btn danger" onclick="logout()">🚪 Wyloguj</button>
+            </div>
+            
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h2>📋 Zlecenia</h2>
+                    <button class="btn success" style="width: auto; padding: 8px 15px;" onclick="refreshOrders()">🔄 Odśwież</button>
+                </div>
+                <div id="ordersList">
+                    <div style="text-align: center; color: #64748b; padding: 20px;">
+                        Brak zleceń
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Zmienne globalne
+        let currentTechnician = null;
+        let orders = [];
+        let isConnectedToServer = false;
+        let API_BASE = 'http://localhost:5174/api';
+        let connectionCheckInterval = null;
+
+        // Inicjalizacja aplikacji
+        window.onload = function() {
+            showDetailedConnectionStatus('🚀 Uruchamianie aplikacji...', 'info');
+            checkConnectionWithRetry();
+            loadSavedData();
+            // Sprawdzaj połączenie co 30 sekund
+            startConnectionMonitoring();
+        };
+
+        // Monitorowanie połączenia
+        function startConnectionMonitoring() {
+            if (connectionCheckInterval) {
+                clearInterval(connectionCheckInterval);
+            }
+            connectionCheckInterval = setInterval(() => {
+                checkConnection();
+            }, 30000); // co 30 sekund
+        }
+
+        // Sprawdź połączenie z szczegółami i ponowną próbą
+        async function checkConnectionWithRetry() {
+            showDetailedConnectionStatus('🔄 Sprawdzanie połączenia z serwerem...', 'info');
+            
+            for (let attempt = 1; attempt <= 3; attempt++) {
+                try {
+                    showDetailedConnectionStatus(`🔄 Próba ${attempt}/3: Łączenie z ${API_BASE}/health`, 'info');
+                    
+                    const startTime = Date.now();
+                    const response = await fetch(`${API_BASE}/health`, {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        cache: 'no-cache'
+                    });
+                    const responseTime = Date.now() - startTime;
+                    
+                    showDetailedConnectionStatus(`📡 Odpowiedź w ${responseTime}ms: Status ${response.status}`, 'info');
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        isConnectedToServer = true;
+                        
+                        showDetailedConnectionStatus(`✅ POŁĄCZENIE UDANE!<br>
+                            • Status: ${response.status} ${response.statusText}<br>
+                            • Czas odpowiedzi: ${responseTime}ms<br>
+                            • Serwer: ${data.status || 'OK'}<br>
+                            • Możesz logować się online`, 'success');
+                        
+                        document.getElementById('diagnostics').classList.remove('hidden');
+                        return true;
+                    } else {
+                        throw new Error(`Serwer odpowiedział błędem: ${response.status} ${response.statusText}`);
+                    }
+                } catch (error) {
+                    const errorMsg = `❌ Próba ${attempt}/3 nieudana: ${error.message}`;
+                    showDetailedConnectionStatus(errorMsg, 'error');
+                    
+                    if (attempt < 3) {
+                        showDetailedConnectionStatus('⏳ Czekam 2 sekundy przed kolejną próbą...', 'info');
+                        await sleep(2000);
+                    }
+                }
+            }
+            
+            // Wszystkie próby nieudane
+            isConnectedToServer = false;
+            showDetailedConnectionStatus(`🚨 BŁĄD POŁĄCZENIA!<br>
+                • Serwer: ${API_BASE}<br>
+                • Status: Niedostępny<br>
+                • Wszystkie 3 próby nieudane<br>
+                • Dostępny tylko tryb offline<br>
+                <button onclick="checkConnectionWithRetry()" style="margin-top: 10px; padding: 8px 15px; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer;">🔄 Spróbuj ponownie</button>`, 'error');
+            
+            document.getElementById('diagnostics').classList.remove('hidden');
+            return false;
+        }
+
+        // Szybkie sprawdzenie połączenia (dla monitoringu)
+        async function checkConnection() {
+            try {
+                const response = await fetch(`${API_BASE}/health`, {
+                    method: 'GET',
+                    timeout: 5000
+                });
+                
+                if (response.ok && !isConnectedToServer) {
+                    // Połączenie zostało przywrócone
+                    isConnectedToServer = true;
+                    showDetailedConnectionStatus('✅ Połączenie przywrócone!', 'success');
+                }
+            } catch (error) {
+                if (isConnectedToServer) {
+                    // Połączenie zostało utracone
+                    isConnectedToServer = false;
+                    showDetailedConnectionStatus(`⚠️ Utracono połączenie: ${error.message}`, 'error');
+                }
+            }
+        }
+
+        // Wyświetl szczegółowy status połączenia
+        function showDetailedConnectionStatus(message, type) {
+            const statusEl = document.getElementById('connectionStatus');
+            statusEl.className = `alert ${type}`;
+            statusEl.innerHTML = message;
+        }
+
+        // Szczegółowa diagnostyka
+        async function runDetailedDiagnostics() {
+            const diagnosticsEl = document.getElementById('diagnosticsContent');
+            diagnosticsEl.innerHTML = '<div class="alert info">🔍 Uruchamiam diagnostykę...</div>';
+            
+            const results = [];
+            
+            // Test 1: Ping serwera
+            try {
+                const startTime = Date.now();
+                const response = await fetch(`${API_BASE}/health`);
+                const responseTime = Date.now() - startTime;
+                
+                results.push({
+                    test: '1. Ping serwera',
+                    status: response.ok ? 'OK' : 'BŁĄD',
+                    details: `Status: ${response.status}, Czas: ${responseTime}ms`,
+                    success: response.ok
+                });
+            } catch (error) {
+                results.push({
+                    test: '1. Ping serwera',
+                    status: 'BŁĄD',
+                    details: error.message,
+                    success: false
+                });
+            }
+            
+            // Test 2: Lista techników
+            try {
+                const response = await fetch(`${API_BASE}/technicians`);
+                const data = await response.json();
+                
+                results.push({
+                    test: '2. Lista techników',
+                    status: response.ok ? 'OK' : 'BŁĄD',
+                    details: response.ok ? `Znaleziono ${data.length} techników` : `Błąd: ${response.status}`,
+                    success: response.ok
+                });
+            } catch (error) {
+                results.push({
+                    test: '2. Lista techników',
+                    status: 'BŁĄD',
+                    details: error.message,
+                    success: false
+                });
+            }
+            
+            // Test 3: Zlecenia dla technika ID 2
+            try {
+                const response = await fetch(`${API_BASE}/desktop/orders/2`);
+                const data = await response.json();
+                
+                results.push({
+                    test: '3. Zlecenia technika #2',
+                    status: response.ok ? 'OK' : 'BŁĄD',
+                    details: response.ok ? `Znaleziono ${data.length} zleceń` : `Błąd: ${response.status}`,
+                    success: response.ok
+                });
+            } catch (error) {
+                results.push({
+                    test: '3. Zlecenia technika #2',
+                    status: 'BŁĄD',
+                    details: error.message,
+                    success: false
+                });
+            }
+            
+            // Wyświetl wyniki
+            const resultHtml = results.map(result => `
+                <div style="margin: 10px 0; padding: 10px; border-radius: 4px; background: ${result.success ? '#d1fae5' : '#fee2e2'};">
+                    <strong>${result.test}:</strong> 
+                    <span style="color: ${result.success ? '#065f46' : '#991b1b'};">${result.status}</span><br>
+                    <small>${result.details}</small>
+                </div>
+            `).join('');
+            
+            const successCount = results.filter(r => r.success).length;
+            const summary = `
+                <div class="alert ${successCount === results.length ? 'success' : 'error'}" style="margin-top: 15px;">
+                    <strong>Podsumowanie:</strong> ${successCount}/${results.length} testów przeszło pomyślnie
+                </div>
+            `;
+            
+            diagnosticsEl.innerHTML = resultHtml + summary;
+        }
+
+        // Funkcja pomocnicza - sleep
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        // Załaduj zapisane dane
+        function loadSavedData() {
+            const savedTechId = localStorage.getItem('technicianId');
+            const savedTechName = localStorage.getItem('technicianName');
+            
+            if (savedTechId && savedTechName) {
+                currentTechnician = { id: savedTechId, name: savedTechName };
+                showMainApp();
+                loadOrders();
+            }
+        }
+
+        // Logowanie lokalne
+        function loginLocal() {
+            const select = document.getElementById('localTechnician');
+            const techId = select.value;
+            const techName = select.options[select.selectedIndex].text;
+            
+            if (!techId) {
+                alert('Wybierz technika');
+                return;
+            }
+            
+            currentTechnician = { id: techId, name: techName, isLocal: true };
+            localStorage.setItem('technicianId', techId);
+            localStorage.setItem('technicianName', techName);
+            
+            // Załaduj przykładowe dane lokalne
+            orders = [
+                {
+                    id: 1001,
+                    order_number: 'LOCAL-001',
+                    title: 'Naprawa kotła (offline)',
+                    client_name: 'Jan Kowalski',
+                    address: 'ul. Testowa 1, Warszawa',
+                    device_name: 'Kocioł gazowy',
+                    priority: 'high',
+                    status: 'new',
+                    description: 'Przykładowe zlecenie offline - brak ogrzewania'
+                },
+                {
+                    id: 1002,
+                    order_number: 'LOCAL-002',
+                    title: 'Serwis klimatyzacji (offline)',
+                    client_name: 'Anna Nowak',
+                    address: 'ul. Przykładowa 5, Kraków',
+                    device_name: 'Klimatyzator Split',
+                    priority: 'medium',
+                    status: 'in_progress',
+                    description: 'Czyszczenie filtrów i serwis'
+                }
+            ];
+            
+            showMainApp();
+            renderOrders();
+            showAlert(`✅ Zalogowano lokalnie jako ${techName}`, 'success');
+            showDetailedConnectionStatus(`📱 Tryb offline - zalogowano jako ${techName}<br>• ${orders.length} przykładowych zleceń<br>• Dane przechowywane lokalnie`, 'info');
+        }
+
+        // Połącz z serwerem
+        async function connectToServer() {
+            const serverUrl = document.getElementById('serverUrl').value;
+            const resultEl = document.getElementById('serverResult');
+            
+            API_BASE = serverUrl + '/api';
+            
+            try {
+                resultEl.innerHTML = '<div class="alert info">🔄 Łączenie z serwerem...</div>';
+                showDetailedConnectionStatus(`🔄 Łączenie z ${API_BASE}...`, 'info');
+                
+                // Test połączenia
+                const startTime = Date.now();
+                const healthResponse = await fetch(`${API_BASE}/health`);
+                const responseTime = Date.now() - startTime;
+                
+                if (!healthResponse.ok) {
+                    throw new Error(`Serwer nie odpowiada: ${healthResponse.status} ${healthResponse.statusText}`);
+                }
+                
+                resultEl.innerHTML = `<div class="alert success">✅ Serwer odpowiada (${responseTime}ms)</div>`;
+                showDetailedConnectionStatus(`✅ Połączono z serwerem w ${responseTime}ms`, 'success');
+                
+                // Pobierz techników
+                resultEl.innerHTML += '<div class="alert info">👥 Pobieranie listy techników...</div>';
+                const techResponse = await fetch(`${API_BASE}/technicians`);
+                const technicians = await techResponse.json();
+                
+                if (!technicians || technicians.length === 0) {
+                    throw new Error('Brak dostępnych techników');
+                }
+                
+                resultEl.innerHTML += `<div class="alert success">✅ Znaleziono ${technicians.length} techników</div>`;
+                
+                // Znajdź Jana Technika lub użyj pierwszego
+                const technician = technicians.find(t => t.name === 'Jan Technik') || technicians[0];
+                
+                currentTechnician = { 
+                    id: technician.id, 
+                    name: technician.name, 
+                    isServer: true 
+                };
+                
+                localStorage.setItem('technicianId', technician.id);
+                localStorage.setItem('technicianName', technician.name);
+                
+                isConnectedToServer = true;
+                
+                resultEl.innerHTML += `<div class="alert success">✅ Zalogowano jako: ${technician.name} (ID: ${technician.id})</div>`;
+                showDetailedConnectionStatus(`✅ POŁĄCZONO! Zalogowano jako ${technician.name}`, 'success');
+                
+                setTimeout(() => {
+                    showMainApp();
+                    loadOrdersFromServer();
+                }, 2000);
+                
+            } catch (error) {
+                const errorMsg = `❌ Błąd połączenia: ${error.message}`;
+                resultEl.innerHTML = `<div class="alert error">${errorMsg}</div>`;
+                showDetailedConnectionStatus(errorMsg, 'error');
+                isConnectedToServer = false;
+            }
+        }
+
+        // Załaduj zlecenia z serwera
+        async function loadOrdersFromServer() {
+            if (!currentTechnician || !currentTechnician.isServer) return;
+            
+            try {
+                showAlert('🔄 Pobieranie zleceń z serwera...', 'info');
+                
+                const response = await fetch(`${API_BASE}/desktop/orders/${currentTechnician.id}`);
+                
+                if (!response.ok) {
+                    throw new Error(`Błąd serwera: ${response.status} ${response.statusText}`);
+                }
+                
+                const serverOrders = await response.json();
+                
+                if (serverOrders && Array.isArray(serverOrders)) {
+                    orders = serverOrders.map(order => ({
+                        id: order.id,
+                        order_number: order.order_number,
+                        title: order.title,
+                        client_name: order.client_name,
+                        address: order.address,
+                        device_name: order.device_name,
+                        priority: order.priority,
+                        status: order.status,
+                        description: order.description || order.notes
+                    }));
+                    
+                    renderOrders();
+                    showAlert(`✅ Pobrano ${orders.length} zleceń z serwera`, 'success');
+                    showDetailedConnectionStatus(`✅ Aktywne - pobrano ${orders.length} zleceń`, 'success');
+                } else {
+                    throw new Error('Nieprawidłowa odpowiedź serwera');
+                }
+            } catch (error) {
+                const errorMsg = `❌ Błąd pobierania zleceń: ${error.message}`;
+                showAlert(errorMsg, 'error');
+                showDetailedConnectionStatus(errorMsg, 'error');
+                isConnectedToServer = false;
+            }
+        }
+
+        // Pokaż główną aplikację
+        function showMainApp() {
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('mainApp').classList.remove('hidden');
+            
+            const welcomeEl = document.getElementById('welcomeMessage');
+            if (currentTechnician) {
+                welcomeEl.textContent = `👋 Witaj, ${currentTechnician.name}!`;
+            }
+        }
+
+        // Pokaż ekran logowania
+        function showLoginScreen() {
+            document.getElementById('loginScreen').classList.remove('hidden');
+            document.getElementById('mainApp').classList.add('hidden');
+        }
+
+        // Wyloguj
+        function logout() {
+            // Zatrzymaj monitorowanie połączenia
+            if (connectionCheckInterval) {
+                clearInterval(connectionCheckInterval);
+                connectionCheckInterval = null;
+            }
+            
+            currentTechnician = null;
+            orders = [];
+            isConnectedToServer = false;
+            localStorage.removeItem('technicianId');
+            localStorage.removeItem('technicianName');
+            
+            showLoginScreen();
+            showDetailedConnectionStatus('👋 Wylogowano - sprawdzanie połączenia zatrzymane', 'info');
+            
+            // Ukryj diagnostykę
+            document.getElementById('diagnostics').classList.add('hidden');
+            
+            showAlert('👋 Wylogowano', 'info');
+            
+            // Uruchom ponownie sprawdzanie połączenia
+            setTimeout(() => {
+                checkConnectionWithRetry();
+                startConnectionMonitoring();
+            }, 1000);
+        }
+
+        // Odśwież zlecenia
+        async function refreshOrders() {
+            if (currentTechnician && currentTechnician.isServer && isConnectedToServer) {
+                showDetailedConnectionStatus('🔄 Odświeżanie zleceń z serwera...', 'info');
+                await loadOrdersFromServer();
+            } else if (currentTechnician && currentTechnician.isLocal) {
+                loadOrders();
+                showAlert('🔄 Odświeżono (tryb offline)', 'info');
+                showDetailedConnectionStatus('📱 Tryb offline - dane lokalne', 'info');
+            } else {
+                showAlert('❌ Najpierw się zaloguj', 'error');
+                showDetailedConnectionStatus('❌ Brak zalogowanego użytkownika', 'error');
+            }
+        }
+
+        // Załaduj zlecenia
+        function loadOrders() {
+            renderOrders();
+        }
+
+        // Renderuj zlecenia
+        function renderOrders() {
+            const listEl = document.getElementById('ordersList');
+            
+            if (orders.length === 0) {
+                listEl.innerHTML = '<div style="text-align: center; color: #64748b; padding: 20px;">Brak zleceń</div>';
+                return;
+            }
+            
+            listEl.innerHTML = orders.map(order => `
+                <div class="order-item">
+                    <div style="margin-bottom: 10px;">
+                        <h3 style="display: inline-block;">${order.title}</h3>
+                        <span class="order-number">${order.order_number || '#' + order.id}</span>
+                        <div style="clear: both;"></div>
+                    </div>
+                    <p><strong>👤 Klient:</strong> ${order.client_name}</p>
+                    <p><strong>📍 Adres:</strong> ${order.address}</p>
+                    <p><strong>🔧 Urządzenie:</strong> ${order.device_name || 'Nie podano'}</p>
+                    <p><strong>⚡ Priorytet:</strong> ${getPriorityLabel(order.priority)}</p>
+                    ${order.description ? `<p><strong>📝 Opis:</strong> ${order.description}</p>` : ''}
+                    <div style="margin-top: 10px;">
+                        <span class="status ${order.status}">${getStatusLabel(order.status)}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Pomocnicze funkcje
+        function getStatusLabel(status) {
+            const labels = {
+                'new': 'Nowe',
+                'in_progress': 'W trakcie', 
+                'completed': 'Zakończone'
+            };
+            return labels[status] || status;
+        }
+
+        function getPriorityLabel(priority) {
+            const labels = {
+                'low': 'Niski',
+                'medium': 'Średni',
+                'high': 'Wysoki'
+            };
+            return labels[priority] || priority;
+        }
+
+        function showAlert(message, type) {
+            const alert = document.createElement('div');
+            alert.className = `alert ${type}`;
+            alert.innerHTML = message;
+            
+            document.body.insertBefore(alert, document.body.firstChild);
+            
+            setTimeout(() => {
+                alert.remove();
+            }, 4000);
+        }
+    </script>
+</body>
+</html> 

@@ -1,0 +1,152 @@
+{
+  "version": 1,
+  "hero": {
+    "kicker": "Serwis ekologicznych instalacji",
+    "title": "Instalacje wod-kan i kotłownie bez przestojów",
+    "subtitle": "Mobilny serwis 24/7 dla domów i firm",
+    "description": "Projektujemy, montujemy i utrzymujemy instalacje wody, ciepła i gazu. Nasi technicy reagują w ciągu 4 godzin od zgłoszenia i kończą pracę bez bałaganu.",
+    "logo": null,
+    "cta": {
+      "label": "Zgłoś wizytę serwisu",
+      "subLabel": "Formularz w 3 krokach – bez dzwonienia"
+    },
+    "stats": [
+      { "type": "text", "label": "Zlecenia rocznie", "value": "1200+", "image": null, "alt": "" },
+      { "type": "text", "label": "Czas reakcji", "value": "< 4h", "image": null, "alt": "" },
+      { "type": "text", "label": "Technicy w terenie", "value": "5", "image": null, "alt": "" }
+    ],
+    "badges": [
+      {
+        "label": "Eco-friendly",
+        "description": "Dobieramy urządzenia o niskim zużyciu energii i wspieramy retencję wody."
+      },
+      {
+        "label": "Certyfikowany serwis",
+        "description": "Uprawnienia SEP i UDT, bieżące szkolenia producentów kotłów."
+      },
+      {
+        "label": "Bezpośredni kontakt",
+        "description": "Stały opiekun techniczny zna historię Twojej instalacji."
+      }
+    ],
+    "statsAnimation": "none"
+  },
+  "highlights": [
+    {
+      "title": "Stały opiekun techniczny",
+      "description": "Jedna osoba odpowiada za Twoją instalację od audytu po serwis awaryjny."
+    },
+    {
+      "title": "Monitoring i czujniki",
+      "description": "Instalujemy czujniki przecieków i temperatur – alarm wysyłamy zanim dojdzie do awarii."
+    },
+    {
+      "title": "Czysty montaż",
+      "description": "Pracujemy w matach ochronnych, korzystamy z filtracji pyłu i sprzątamy po sobie."
+    }
+  ],
+  "services": [
+    {
+      "id": "wod-kan",
+      "name": "Instalacje wodno-kanalizacyjne",
+      "shortDescription": "Hydraulika dla domów i firm: montaż, modernizacja i serwis instalacji wod-kan.",
+      "detailedDescription": "Przeprowadzamy audyty instalacji, doradzamy materiały i prowadzimy prace bez przestojów produkcji. Zabezpieczamy układami antyzalaniowymi i retencyjnymi.",
+      "bulletPoints": [
+        "Projekt i montaż instalacji wody oraz kanalizacji deszczowej.",
+        "Modernizacje w istniejących budynkach bez wyłączeń.",
+        "Lokalizacja przecieków kamerą termowizyjną i endoskopem."
+      ],
+      "icon": "droplet",
+      "requestType": "awaria",
+      "desktopCategoryId": null
+    },
+    {
+      "id": "ogrzewanie",
+      "name": "Ogrzewanie i podłogówka",
+      "shortDescription": "Kotłownie, pompy ciepła i ogrzewanie podłogowe – od projektu do serwisu.",
+      "detailedDescription": "Dobieramy źródła ciepła, montujemy układy mieszające i automatykę pogodową. Przeglądy wykonujemy poza sezonem, aby w zimie uniknąć przestojów.",
+      "bulletPoints": [
+        "Optymalizacja kotłowni i buforów ciepła pod taryfy energii.",
+        "Sterowanie pogodowe i zdalne aplikacje dla użytkowników.",
+        "Przeglądy sezonowe z raportem i zaleceniami."
+      ],
+      "icon": "flame",
+      "requestType": "przeglad",
+      "desktopCategoryId": null
+    },
+    {
+      "id": "gaz",
+      "name": "Instalacje gazowe i kotły",
+      "shortDescription": "Modernizacja kotłowni gazowych, wymiana palników i szybkie naprawy.",
+      "detailedDescription": "Zapewniamy zgodność z normami, wykonujemy pomiary spalin i przygotowujemy dokumentację UDT. Prowadzimy serwis gwarancyjny i pogwarancyjny.",
+      "bulletPoints": [
+        "Pomiary spalin, strojenie palnika i optymalizacja spalania.",
+        "Wymiana armatury gazowej i automatyki zabezpieczeń.",
+        "Przygotowanie protokołów odbioru i dokumentów UDT."
+      ],
+      "icon": "leaf",
+      "requestType": "naprawa",
+      "desktopCategoryId": null
+    },
+    {
+      "id": "serwis24",
+      "name": "Serwis 24/7",
+      "shortDescription": "Mobilne zespoły reagują w ciągu 4 godzin – także w nocy i święta.",
+      "detailedDescription": "Zdalna diagnostyka przed przyjazdem skraca czas naprawy. Każde zlecenie dokumentujemy zdjęciami i raportem wysyłanym e-mailem.",
+      "bulletPoints": [
+        "Dyżury całodobowe i elastyczne okna serwisowe.",
+        "Szeroki magazyn części zamiennych w samochodach.",
+        "Raport PDF z opisem prac i zdjęciami przed/po."
+      ],
+      "icon": "bolt",
+      "requestType": "awaria",
+      "desktopCategoryId": null
+    }
+  ],
+  "form": {
+    "steps": [
+      {
+        "id": "service",
+        "title": "Wybierz zakres",
+        "description": "Zaznacz usługę i wskaż, co się dzieje."
+      },
+      {
+        "id": "location",
+        "title": "Adres i termin",
+        "description": "Adres instalacji, dostęp i preferowany termin."
+      },
+      {
+        "id": "contact",
+        "title": "Dane kontaktowe",
+        "description": "Imię, telefon i opcjonalnie e-mail do potwierdzeń."
+      },
+      {
+        "id": "summary",
+        "title": "Podsumowanie",
+        "description": "Sprawdź dane i wyślij zgłoszenie."
+      }
+    ],
+    "reasons": [
+      "Brak ogrzewania lub ciepłej wody",
+      "Zalanie lub podejrzenie przecieku",
+      "Modernizacja lub rozbudowa instalacji",
+      "Przegląd sezonowy",
+      "Dobór nowego źródła ciepła"
+    ],
+    "availabilityOptions": [
+      "Jak najszybciej",
+      "Dni robocze 8-16",
+      "Popołudnie / weekend",
+      "Po wcześniejszym kontakcie"
+    ],
+    "brandOptions": [
+      "Buderus",
+      "Bosch",
+      "Baxi",
+      "Viessmann",
+      "Junkers",
+      "De Dietrich"
+    ]
+  }
+}
+

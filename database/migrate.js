@@ -21,7 +21,7 @@ try {
   sqliteDb = new sqlite3.Database(sqliteDbPath, sqlite3.OPEN_READONLY, (err) => {
     if (err) {
       console.error('❌ SQLite connection error:', err.message);
-      console.log('⚠️ SQLite not available - will create empty PostgreSQL tables with test data');
+      console.log('⚠️ SQLite not available - skipping test user seed in production');
       sqliteConnected = false;
     } else {
       console.log('✅ Connected to SQLite database');
@@ -46,6 +46,30 @@ async function createTables() {
       full_name VARCHAR(255) NOT NULL,
       email VARCHAR(255),
       role VARCHAR(50) DEFAULT 'technician',
+      is_active BOOLEAN DEFAULT true,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+    
+    // Service Categories (hierarchical)
+    `CREATE TABLE IF NOT EXISTS service_categories (
+      id SERIAL PRIMARY KEY,
+      code VARCHAR(50) UNIQUE NOT NULL,
+      name VARCHAR(255) NOT NULL,
+      description TEXT,
+      parent_id INTEGER REFERENCES service_categories(id) ON DELETE CASCADE,
+      sort_order INTEGER DEFAULT 0,
+      is_active BOOLEAN DEFAULT true,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+    
+    // Part Categories (flat for now)
+    `CREATE TABLE IF NOT EXISTS part_categories (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(255) UNIQUE NOT NULL,
+      description TEXT,
+      sort_order INTEGER DEFAULT 0,
       is_active BOOLEAN DEFAULT true,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -226,6 +250,63 @@ async function createTables() {
       is_primary BOOLEAN DEFAULT false,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+
+    // Service Requests table (zgłoszenia serwisowe od klientów)
+    `CREATE TABLE IF NOT EXISTS service_requests (
+      id SERIAL PRIMARY KEY,
+      reference_number VARCHAR(50) UNIQUE NOT NULL,
+      service_type VARCHAR(50) DEFAULT 'other',
+      contact_name VARCHAR(255) NOT NULL,
+      phone VARCHAR(50) NOT NULL,
+      email VARCHAR(255) NOT NULL,
+      nip VARCHAR(20),
+      address TEXT,
+      city VARCHAR(100),
+      directions TEXT,
+      device_type VARCHAR(100),
+      device_model VARCHAR(255),
+      device_year INTEGER,
+      previous_service VARCHAR(10),
+      description TEXT NOT NULL,
+      preferred_date DATE,
+      preferred_time TIME,
+      is_urgent BOOLEAN DEFAULT false,
+      service_category_id INTEGER REFERENCES service_categories(id),
+      status VARCHAR(50) DEFAULT 'pending',
+      assigned_technician_id INTEGER REFERENCES users(id),
+      submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+
+    // Client History table (historia serwisowa klientów)
+    `CREATE TABLE IF NOT EXISTS client_history (
+      id SERIAL PRIMARY KEY,
+      client_id INTEGER REFERENCES clients(id),
+      device_id INTEGER REFERENCES devices(id),
+      service_date DATE NOT NULL,
+      service_type VARCHAR(100) NOT NULL,
+      description TEXT,
+      technician_id INTEGER REFERENCES users(id),
+      parts_used TEXT,
+      hours_worked DECIMAL(5,2),
+      notes TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+
+    // Device Service History table (historia serwisowa urządzeń)
+    `CREATE TABLE IF NOT EXISTS device_service_history (
+      id SERIAL PRIMARY KEY,
+      device_id INTEGER REFERENCES devices(id),
+      service_date DATE NOT NULL,
+      service_type VARCHAR(100) NOT NULL,
+      description TEXT,
+      technician_id INTEGER REFERENCES users(id),
+      parts_used TEXT,
+      hours_worked DECIMAL(5,2),
+      notes TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`
   ];
   
@@ -244,8 +325,18 @@ async function createTables() {
     'CREATE INDEX IF NOT EXISTS idx_service_orders_status ON service_orders(status)',
     'CREATE INDEX IF NOT EXISTS idx_service_orders_client ON service_orders(client_id)',
     'CREATE INDEX IF NOT EXISTS idx_devices_client ON devices(client_id)',
-    'CREATE INDEX IF NOT EXISTS idx_device_files_device ON device_files(device_id)'
+    'CREATE INDEX IF NOT EXISTS idx_device_files_device ON device_files(device_id)',
+    'CREATE INDEX IF NOT EXISTS idx_service_categories_parent ON service_categories(parent_id)',
+    'CREATE INDEX IF NOT EXISTS idx_part_categories_active ON part_categories(is_active)'
   ];
+
+  // Ensure new columns exist (idempotent)
+  try {
+    await pgPool.query('ALTER TABLE part_categories ADD COLUMN IF NOT EXISTS parent_id INTEGER REFERENCES part_categories(id)');
+    await pgPool.query('CREATE INDEX IF NOT EXISTS idx_part_categories_parent ON part_categories(parent_id)');
+  } catch (e) {
+    console.error('⚠️ Alter part_categories parent_id failed:', e.message);
+  }
   
   for (const index of indexes) {
     try {
@@ -286,37 +377,14 @@ async function migrateUsers() {
     console.log('👥 Migrating users...');
     
     if (!sqliteConnected) {
-      console.log('⚠️ SQLite not available, creating test technician in PostgreSQL');
-      (async () => {
-        try {
-          await pgPool.query(`
-            INSERT INTO users (id, username, password_hash, full_name, email, role, is_active) 
-            VALUES (2, 'jan.technik', '$2a$10$X8VcQUzK5v7QdD1CrO3A8uF8qW4nH2mT9jKpL6xR7sE9A1B3C4D5E6', 'Jan Technik', 'jan.technik@serwis.pl', 'technician', true)
-            ON CONFLICT (username) DO UPDATE SET full_name = EXCLUDED.full_name
-          `);
-          console.log('✅ Created test technician in PostgreSQL');
-        } catch (error) {
-          console.error('❌ Error creating test technician in PostgreSQL:', error.message);
-        }
-        resolve();
-      })();
+      console.log('⚠️ SQLite not available, skipping creation of test technician in production');
+      resolve();
       return;
     }
 
     sqliteDb.all('SELECT * FROM users', async (err, rows) => {
       if (err) {
-        console.log('⚠️ Users table does not exist in SQLite, creating test technician in PostgreSQL');
-        // Create test technician if table doesn't exist
-        try {
-          await pgPool.query(`
-            INSERT INTO users (id, username, password_hash, full_name, email, role, is_active) 
-            VALUES (2, 'jan.technik', '$2a$10$X8VcQUzK5v7QdD1CrO3A8uF8qW4nH2mT9jKpL6xR7sE9A1B3C4D5E6', 'Jan Technik', 'jan.technik@serwis.pl', 'technician', true)
-            ON CONFLICT (username) DO UPDATE SET full_name = EXCLUDED.full_name
-          `);
-          console.log('✅ Created test technician in PostgreSQL');
-        } catch (error) {
-          console.error('❌ Error creating test technician in PostgreSQL:', error.message);
-        }
+        console.log('⚠️ Users table missing in SQLite, skipping creation of any test user');
         resolve();
         return;
       }

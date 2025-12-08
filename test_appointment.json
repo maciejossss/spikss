@@ -1,9 +1,0 @@
-{
-  "client_id": "ba28373d-aee2-4967-90e7-852d9fbb0d11",
-  "technician_id": "9119a58a-9062-47a8-bf4d-03b475ef00ac",
-  "appointment_date": "2025-06-05",
-  "start_time": "10:00",
-  "appointment_type": "maintenance",
-  "description": "Test appointment for today",
-  "priority": "normal"
-} 

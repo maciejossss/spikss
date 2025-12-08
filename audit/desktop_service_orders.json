@@ -1,0 +1,44 @@
+[
+  {
+    "id": 719,
+    "device_id": 12,
+    "status": "completed",
+    "updated_at": "2025-11-02T14:58:47.558Z"
+  },
+  {
+    "id": 492,
+    "device_id": 12,
+    "status": "przed czasem",
+    "updated_at": "2025-09-25 09:46:39"
+  },
+  {
+    "id": 495,
+    "device_id": 12,
+    "status": "przed czasem",
+    "updated_at": "2025-10-31T07:00:08.744Z"
+  },
+  {
+    "id": 493,
+    "device_id": 12,
+    "status": "przed czasem",
+    "updated_at": "2025-10-31T07:00:08.592Z"
+  },
+  {
+    "id": 480,
+    "device_id": 12,
+    "status": "przed czasem",
+    "updated_at": "2025-10-31T07:00:08.644Z"
+  },
+  {
+    "id": 490,
+    "device_id": 12,
+    "status": "przed czasem",
+    "updated_at": "2025-10-31T07:00:08.696Z"
+  },
+  {
+    "id": 479,
+    "device_id": 12,
+    "status": "przed czasem",
+    "updated_at": "2025-10-31T07:00:08.544Z"
+  }
+]

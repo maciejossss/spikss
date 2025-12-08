@@ -1,0 +1,3 @@
+DATABASE_URL=postgresql://postgres:RejcVVXxoptptXgEpADDwuKBDm@gokfwbeShuttle.proxy.rlwy.net:15342/railway
+NODE_ENV=production
+PORT=3000

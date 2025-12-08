@@ -311,44 +311,7 @@ const OrderDetail = {
         </div>
       </div>
 
-      <!-- Zdjęcia -->
-      <div class="bg-white mt-2 p-4">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="font-semibold text-gray-900">Zdjęcia ({{ photos.length }})</h3>
-          <button 
-            @click="addPhoto"
-            class="p-2 bg-blue-600 text-white rounded-lg"
-          >
-            <i class="fas fa-camera mr-2"></i>
-            Dodaj
-          </button>
-        </div>
-
-        <div v-if="photos.length === 0" class="text-center py-8 text-gray-500">
-          <i class="fas fa-camera text-3xl mb-2"></i>
-          <p>Brak zdjęć</p>
-        </div>
-
-        <div v-else class="grid grid-cols-3 gap-2">
-          <div 
-            v-for="photo in photos" 
-            :key="photo.id"
-            class="relative aspect-square"
-          >
-            <img 
-              :src="photo.data" 
-              class="w-full h-full object-cover rounded-lg"
-              :alt="photo.filename"
-            >
-            <button
-              @click="removePhoto(photo.id)"
-              class="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full text-xs"
-            >
-              ×
-            </button>
-          </div>
-        </div>
-      </div>
+      <!-- Zdjęcia – WYŁĄCZONE -->
 
       <!-- Uwagi -->
       <div class="bg-white mt-2 p-4">

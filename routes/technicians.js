@@ -3,25 +3,33 @@ const router = express.Router();
 const db = require('../database/connection');
 
 // GET /api/technicians - Pobierz listę techników (match local API)
-router.get('/technicians', async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     console.log('📱 Pobieranie listy techników...');
     
-    // Query exactly matching local SQLite API
+    // Query exactly matching local SQLite API with order counts
     const query = `
-      SELECT id, username, full_name, email, role
-      FROM users 
-      WHERE role IN ('technician', 'installer') 
-      AND is_active = true
-      ORDER BY full_name ASC
+      SELECT 
+        u.id, u.username, u.full_name, u.email, u.role,
+        (
+          SELECT COUNT(*) FROM service_orders o 
+          WHERE o.assigned_user_id = u.id 
+            AND o.status IN ('new','pending','in_progress')
+        ) AS order_count
+      FROM users u
+      WHERE u.role IN ('technician', 'installer') 
+        AND u.is_active = true
+      ORDER BY u.full_name ASC
     `;
     
     const result = await db.query(query);
     
-    console.log(`📱 Pobrano ${result.rows.length} techników:`, 
-                result.rows.map(t => ({id: t.id, name: t.full_name})));
+    // Filter out legacy test user if present
+    const technicians = result.rows.filter(t => t.username !== 'jan.technik');
     
-    res.json(result.rows);
+    console.log(`📱 Pobrano ${technicians.length} techników`, technicians.map(t => ({id: t.id, name: t.full_name, orders: t.order_count})));
+    
+    res.json(technicians);
     
   } catch (error) {
     console.error('❌ Błąd pobierania techników:', error);
@@ -34,7 +42,7 @@ router.get('/technicians', async (req, res) => {
 });
 
 // GET /api/technicians/:id - Pobierz szczegóły technika
-router.get('/technicians/:id', async (req, res) => {
+router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -70,7 +78,7 @@ router.get('/technicians/:id', async (req, res) => {
 });
 
 // POST /api/technicians - Dodaj nowego technika
-router.post('/technicians', async (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const { username, full_name, email, role = 'technician', password_hash } = req.body;
     
@@ -117,7 +125,7 @@ router.post('/technicians', async (req, res) => {
 });
 
 // PUT /api/technicians/:id - Aktualizuj technika
-router.put('/technicians/:id', async (req, res) => {
+router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { full_name, email, role, is_active } = req.body;
@@ -194,7 +202,7 @@ router.put('/technicians/:id', async (req, res) => {
 });
 
 // DELETE /api/technicians/:id - Usuń technika (soft delete)
-router.delete('/technicians/:id', async (req, res) => {
+router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     

@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Serwis Mobile</title>
+  
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#3b82f6">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Serwis Mobile">
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  
+  <!-- Vue.js -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  
+  <!-- API Configuration -->
+  <script src="/js/config.js?v=20251007a"></script>
+  
+  <style>
+    /* Mobilny interfejs - duże klikowalne elementy */
+    .mobile-tile {
+      min-height: 80px;
+      transition: all 0.2s ease;
+    }
+    .mobile-tile:active {
+      transform: scale(0.95);
+      background-color: #f3f4f6;
+    }
+    
+    /* Prevent zoom on double tap */
+    * {
+      touch-action: manipulation;
+    }
+    
+    /* Custom scrollbar for mobile */
+    ::-webkit-scrollbar {
+      width: 4px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f1f1;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #c1c1c1;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body class="bg-gray-50">
+  <div id="app">
+    <div class="flex items-center justify-center min-h-screen bg-gray-50">
+      <div class="text-center">
+        <div class="mx-auto w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mb-4">
+          <span class="text-white font-bold text-2xl">S</span>
+        </div>
+        <h1 class="text-xl font-semibold text-gray-900">SERWIS MOBILE</h1>
+        <p class="text-gray-500 mt-2">Ładowanie...</p>
+      </div>
+    </div>
+  </div>
+  
+  <script src="/js/app.js?v=20251007b"></script>
+</body>
+</html> 

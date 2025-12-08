@@ -1,0 +1,79 @@
+{
+  "generated_at": "2025-10-02T00:00:00Z",
+  "nodes": [
+    {
+      "id": "desktop/src/electron/main.js",
+      "type": "electron-main",
+      "entry": true,
+      "imports": [
+        "electron",
+        "path",
+        "fs",
+        "./api-server",
+        "./database"
+      ],
+      "responsibilities": [
+        "Tworzy okno główne Electron",
+        "Inicjalizuje lokalną bazę (SQLite wrapper)",
+        "Uruchamia lokalny serwer API na porcie 5174",
+        "Obsługuje IPC (backup, pliki urządzeń, użytkownicy, PDF)"
+      ]
+    },
+    {
+      "id": "desktop/src/electron/api-server.js",
+      "type": "express-server",
+      "imports": [
+        "express",
+        "cors",
+        "path",
+        "node:fs",
+        "node:os"
+      ],
+      "external_services": [
+        {
+          "name": "Railway API",
+          "env": ["RAILWAY_API_BASE", "RAILWAY_URL"],
+          "base": "https://web-production-fc58d.up.railway.app/api"
+        }
+      ],
+      "depends_on": [
+        {
+          "token": "db",
+          "notes": "Wstrzyknięty serwis bazy (SQLite-like API: get/all/run)"
+        }
+      ],
+      "endpoints": [
+        "/api/desktop/*",
+        "/api/railway/*",
+        "/api/debug/*",
+        "/api/test",
+        "/api/health"
+      ]
+    },
+    {
+      "id": "server.js",
+      "type": "node-server-entry",
+      "imports": ["./desktop/railway-backend/server"],
+      "responsibilities": [
+        "Wejście dla Railway – startuje backend serwer w podkatalogu"
+      ]
+    },
+    {
+      "id": "database/connection.js",
+      "type": "pg-pool",
+      "imports": ["pg"],
+      "responsibilities": [
+        "Połączenie z PostgreSQL (Railway)",
+        "Metody query/get/all/run, transakcje"
+      ]
+    }
+  ],
+  "edges": [
+    { "from": "desktop/src/electron/main.js", "to": "desktop/src/electron/api-server.js", "type": "require" },
+    { "from": "desktop/src/electron/main.js", "to": "desktop/src/electron/database", "type": "require" },
+    { "from": "desktop/src/electron/api-server.js", "to": "Railway API", "type": "http" },
+    { "from": "server.js", "to": "desktop/railway-backend/server.js", "type": "require" }
+  ]
+}
+
+

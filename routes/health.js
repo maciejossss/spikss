@@ -3,7 +3,7 @@ const router = express.Router();
 const db = require('../database/connection');
 
 // Health check endpoint
-router.get('/health', async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const start = Date.now();
     
@@ -47,7 +47,7 @@ router.get('/health', async (req, res) => {
 });
 
 // Deep health check with database queries
-router.get('/health/deep', async (req, res) => {
+router.get('/deep', async (req, res) => {
   try {
     const checks = {};
     

@@ -9,6 +9,8 @@ const OrderDetail = {
     const notes = ref('');
     const isSubmitting = ref(false);
     const showCamera = ref(false);
+    const showRejectModal = ref(false);
+    const rejectReason = ref('');
 
     // Parsuj kategorie z zlecenia
     const orderCategories = computed(() => {
@@ -116,6 +118,40 @@ const OrderDetail = {
       }
     };
 
+    // Zlecenie nie zrealizowane
+    const rejectOrder = async () => {
+      if (!rejectReason.value.trim()) {
+        alert('Wprowadź powód nie zrealizowania zlecenia');
+        return;
+      }
+
+      isSubmitting.value = true;
+      
+      try {
+        const success = await API.updateOrderStatus(
+          props.order.id,
+          'rejected',
+          [],
+          [],
+          `Zlecenie nie zrealizowane: ${rejectReason.value}`
+        );
+
+        if (success) {
+          alert('✅ Zlecenie oznaczone jako nie zrealizowane');
+          emit('order-updated');
+          emit('back');
+        } else {
+          alert('❌ Błąd podczas oznaczania zlecenia');
+        }
+      } catch (error) {
+        alert('❌ Błąd podczas oznaczania zlecenia');
+      } finally {
+        isSubmitting.value = false;
+        showRejectModal.value = false;
+        rejectReason.value = '';
+      }
+    };
+
     // Zakończ zlecenie
     const completeOrder = async () => {
       if (completedCategories.value.size === 0) {
@@ -155,24 +191,22 @@ const OrderDetail = {
       }
     };
 
-    // Nawigacja (Google Maps/Apple Maps)
+    // Otwórz nawigację
     const openNavigation = () => {
-      const address = encodeURIComponent(props.order.address);
-      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-      
-      if (isIOS) {
-        window.open(`maps://maps.google.com/maps?daddr=${address}`);
-      } else {
-        window.open(`https://maps.google.com/maps?daddr=${address}`);
+      if (props.order.address) {
+        const encodedAddress = encodeURIComponent(props.order.address);
+        window.open(`https://maps.google.com/maps?q=${encodedAddress}`, '_blank');
       }
     };
 
-    // Formatowanie czasu
+    // Formatuj datę
     const formatDateTime = (dateString) => {
+      if (!dateString) return '';
       const date = new Date(dateString);
       return date.toLocaleString('pl-PL', {
-        day: 'numeric',
-        month: 'short',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
         hour: '2-digit',
         minute: '2-digit'
       });
@@ -183,13 +217,16 @@ const OrderDetail = {
       photos,
       notes,
       isSubmitting,
-      isStarting,
+      showCamera,
+      showRejectModal,
+      rejectReason,
       orderCategories,
       categoryGroups,
       toggleCategory,
       addPhoto,
       removePhoto,
       startWork,
+      rejectOrder,
       completeOrder,
       callClient,
       openNavigation,
@@ -210,10 +247,11 @@ const OrderDetail = {
               :class="{
                 'bg-blue-500': order.status === 'new',
                 'bg-yellow-500': order.status === 'in_progress', 
-                'bg-green-500': order.status === 'completed'
+                'bg-green-500': order.status === 'completed',
+                'bg-red-500': order.status === 'rejected'
               }"
             >
-              {{ order.status === 'new' ? 'Nowe' : order.status === 'in_progress' ? 'W trakcie' : 'Ukończone' }}
+              {{ order.status === 'new' ? 'Nowe' : order.status === 'in_progress' ? 'W trakcie' : order.status === 'completed' ? 'Ukończone' : 'Nie zrealizowane' }}
             </span>
           </div>
 
@@ -272,9 +310,9 @@ const OrderDetail = {
         <p class="text-gray-700 leading-relaxed">{{ order.description }}</p>
       </div>
 
-      <!-- Kategorie prac do wykonania -->
-      <div class="bg-white mt-2 p-4">
-        <h3 class="font-semibold text-gray-900 mb-4">Zakres prac</h3>
+      <!-- Kategorie prac do wykonania - WIDOCZNE TYLKO PO ROZPOCZĘCIU PRACY -->
+      <div class="bg-white mt-2 p-4" v-if="order.status === 'in_progress'">
+        <h3 class="font-semibold text-gray-900 mb-4">Czynności wykonane</h3>
         
         <div class="space-y-4">
           <div v-for="(categories, groupName) in categoryGroups" :key="groupName">
@@ -311,8 +349,8 @@ const OrderDetail = {
         </div>
       </div>
 
-      <!-- Zdjęcia -->
-      <div class="bg-white mt-2 p-4">
+      <!-- Zdjęcia - WIDOCZNE TYLKO PO ROZPOCZĘCIU PRACY -->
+      <div class="bg-white mt-2 p-4" v-if="order.status === 'in_progress'">
         <div class="flex items-center justify-between mb-4">
           <h3 class="font-semibold text-gray-900">Zdjęcia ({{ photos.length }})</h3>
           <button 
@@ -350,12 +388,12 @@ const OrderDetail = {
         </div>
       </div>
 
-      <!-- Uwagi -->
-      <div class="bg-white mt-2 p-4">
-        <h3 class="font-semibold text-gray-900 mb-3">Uwagi</h3>
+      <!-- Uwagi - WIDOCZNE TYLKO PO ROZPOCZĘCIU PRACY -->
+      <div class="bg-white mt-2 p-4" v-if="order.status === 'in_progress'">
+        <h3 class="font-semibold text-gray-900 mb-3">Notatki z pracy</h3>
         <textarea
           v-model="notes"
-          placeholder="Dodaj uwagi do zlecenia..."
+          placeholder="Dodaj notatki z wykonanej pracy..."
           class="w-full p-3 border border-gray-300 rounded-lg resize-none"
           rows="3"
         ></textarea>
@@ -377,6 +415,16 @@ const OrderDetail = {
           <i v-if="isStarting" class="fas fa-spinner fa-spin mr-2"></i>
           <i v-else class="fas fa-play mr-2"></i>
           {{ isStarting ? 'Rozpoczynam...' : 'Rozpocznij pracę' }}
+        </button>
+
+        <!-- Zlecenie nie zrealizowane -->
+        <button
+          v-if="order.status === 'new'"
+          @click="showRejectModal = true"
+          class="w-full mb-3 py-4 font-bold rounded-xl text-lg bg-red-600 text-white hover:bg-red-700"
+        >
+          <i class="fas fa-times mr-2"></i>
+          Zlecenie nie zrealizowane
         </button>
 
         <!-- Zakończ zlecenie -->
@@ -401,9 +449,44 @@ const OrderDetail = {
           <p class="text-green-600 font-semibold">Zlecenie ukończone</p>
         </div>
 
+        <!-- Zlecenie nie zrealizowane -->
+        <div v-if="order.status === 'rejected'" class="text-center py-4">
+          <i class="fas fa-times-circle text-4xl text-red-600 mb-2"></i>
+          <p class="text-red-600 font-semibold">Zlecenie nie zrealizowane</p>
+        </div>
+
         <!-- Statystyki -->
-        <div class="mt-4 text-center text-sm text-gray-500">
+        <div class="mt-4 text-center text-sm text-gray-500" v-if="order.status === 'in_progress'">
           Zaznaczone prace: {{ completedCategories.size }} / {{ orderCategories.length }}
+        </div>
+      </div>
+
+      <!-- Modal zlecenie nie zrealizowane -->
+      <div v-if="showRejectModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-xl p-6 m-4 max-w-md w-full">
+          <h3 class="text-lg font-bold mb-4">Zlecenie nie zrealizowane</h3>
+          <textarea
+            v-model="rejectReason"
+            placeholder="Wprowadź powód nie zrealizowania zlecenia..."
+            class="w-full p-3 border border-gray-300 rounded-lg resize-none mb-4"
+            rows="3"
+          ></textarea>
+          <div class="flex space-x-3">
+            <button
+              @click="showRejectModal = false"
+              class="flex-1 py-2 px-4 bg-gray-300 text-gray-700 rounded-lg"
+            >
+              Anuluj
+            </button>
+            <button
+              @click="rejectOrder"
+              :disabled="isSubmitting || !rejectReason.trim()"
+              class="flex-1 py-2 px-4 bg-red-600 text-white rounded-lg"
+              :class="{ 'opacity-50': isSubmitting || !rejectReason.trim() }"
+            >
+              {{ isSubmitting ? 'Zapisywanie...' : 'Potwierdź' }}
+            </button>
+          </div>
         </div>
       </div>
     </div>

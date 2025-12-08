@@ -1,0 +1,6 @@
+# robots.txt
+User-agent: *
+Allow: /
+
+# Update sitemap URL after attaching your custom domain
+Sitemap: https://web-production-fc58d.up.railway.app/sitemap.xml

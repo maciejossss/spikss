@@ -1,0 +1,9 @@
+id,file,line,type,opis,reprodukcja,powtarzalnosc,priorytet,rekomendowana_naprawa
+ISS-001,desktop/src/electron/api-server.js,1844,bug,"ReferenceError w autoExporter: clientEmailRow/deviceSerialRow nie są zdefiniowane","Uruchom auto-export (timer)",zawsze,wysoki,"Zdefiniować zmienne jak w export-now lub usunąć z payload; test jednostkowy"
+ISS-002,desktop/src/electron/api-server.js,1099,security,"/api/debug/execute-sql pozwala na dowolny SQL bez autoryzacji","POST na /api/debug/execute-sql z SQL",zawsze,blokujący,"Wyłączyć w produkcji, dodać tajny nagłówek, ograniczyć do SELECT"
+ISS-003,desktop/src/electron/api-server.js,23,security,"CORS echo Origin + credentials=true dla wszystkich","Żądanie z dowolnej domeny",zawsze,wysoki,"Whitelist originów, rozważyć wyłączenie credentials"
+ISS-004,desktop/src/electron/main.js,685,security,"IPC users-get-pin zwraca jawny PIN","Wywołanie IPC users-get-pin",zawsze,blokujący,"Nie zwracać PIN w jawnej formie; przechowywać tylko hash"
+ISS-005,desktop/src/electron/api-server.js,596,security,"Serwowanie plików po ścieżce z DB bez walidacji root","Wstawić ścieżkę spoza dozwolonego root",zawsze (przy złych danych),średni,"Walidować root, rozszerzenia; użyć sendFile z root"
+ISS-006,desktop/src/electron/api-server.js,102,perf,"Rate-limit Map bez czyszczenia kluczy","Stały ruch tworzy wpisy",zawsze,niski,"Czyścić stare klucze lub użyć lib z TTL"
+
+

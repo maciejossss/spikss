@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Instalacje Wod-Kan & Serwis Kotłów • Instalacje Serwis</title>
+    <meta name="description" content="Serwis instalacji wod-kan, kotłowni i ogrzewania. Mobilni technicy 24/7, szybkie zgłoszenie online." />
+    <link rel="stylesheet" href="/css/landing.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <div class="page">
+      <aside class="info-column" data-info-column>
+        <header class="brand-card">
+          <div class="brand-logo">
+            <div class="brand-logo__image" data-hero-logo hidden>
+              <img src="" alt="Logo firmy" data-hero-logo-img />
+            </div>
+            <span class="brand-logo__icon" data-hero-initials>IS</span>
+            <div>
+              <p class="brand-logo__kicker" data-hero-kicker>Serwis ekologicznych instalacji</p>
+              <h1 class="brand-logo__title" data-hero-title>Instalacje Serwis</h1>
+            </div>
+          </div>
+          <p class="brand-card__subtitle" data-hero-subtitle></p>
+          <p class="brand-card__description" data-hero-description></p>
+          <div class="brand-stats" data-hero-stats></div>
+          <div class="brand-badges" data-hero-badges></div>
+        </header>
+
+        <section class="services">
+          <div class="services__head">
+            <h2>Co robimy?</h2>
+            <p>Zakres usług dopasowany do domów, wspólnot i firm. Kliknij, aby zobaczyć szczegóły.</p>
+          </div>
+          <div class="services__grid" data-services-grid></div>
+        </section>
+
+        <section class="highlights" data-highlights></section>
+
+        <footer class="info-footer">
+          <div>
+            <p class="info-footer__label">Telefon alarmowy</p>
+            <p class="info-footer__value" data-company-phone>+48 000 000 000</p>
+          </div>
+          <div>
+            <p class="info-footer__label">Obsługujemy</p>
+            <p class="info-footer__value" data-company-area>Wielkopolska</p>
+          </div>
+          <div>
+            <p class="info-footer__label">E-mail</p>
+            <p class="info-footer__value" data-company-email>serwis@instalacjeserwis.pl</p>
+          </div>
+        </footer>
+      </aside>
+
+      <main class="form-column">
+        <section class="form-card" data-form-container>
+          <div class="form-card__head">
+            <div>
+              <p class="form-card__kicker">Formularz serwisowy</p>
+              <h2>Zgłoś instalację w 3 krokach</h2>
+              <p>Minimalne pisanie, szybka wycena i termin – odpowiedź wysyłamy w ciągu 30 minut w godzinach pracy.</p>
+            </div>
+            <div class="form-card__cta" data-hero-cta></div>
+          </div>
+
+          <div class="steps" data-steps></div>
+
+          <form class="service-form" novalidate>
+            <!-- Step: service -->
+            <fieldset class="form-step is-active" data-step="service">
+              <legend>Co się dzieje?</legend>
+              <div class="step-content">
+                <div class="form-section">
+                  <p class="form-section__label">Zakres prac*</p>
+                  <div class="options-grid" data-service-options></div>
+                </div>
+                <div class="form-section">
+                  <p class="form-section__label">Dlaczego zgłaszasz?*</p>
+                  <div class="options-list" data-reason-options></div>
+                </div>
+                <div class="form-section">
+                  <label class="field">
+                    <span class="field__label">Opisz krótko problem*</span>
+                    <textarea name="description" rows="3" required placeholder="Napisz, co się dzieje. Możesz wskazać objawy, komunikaty na sterowniku itp." data-field-description></textarea>
+                  </label>
+                </div>
+                <div class="form-section form-section--two-cols">
+                  <label class="field">
+                    <span class="field__label">Typ urządzenia *</span>
+                    <select name="deviceType" required data-field-device-type>
+                      <option value="">Wybierz typ</option>
+                      <option value="Kocioł gazowy">Kocioł gazowy</option>
+                      <option value="Kocioł olejowy">Kocioł olejowy</option>
+                      <option value="Instalacja wod-kan">Instalacja wod-kan</option>
+                      <option value="Inne">Inne</option>
+                    </select>
+                  </label>
+                  <label class="field">
+                    <span class="field__label">Marka urządzenia *</span>
+                    <select name="deviceBrand" required data-field-device-brand>
+                      <option value="">Wybierz markę</option>
+                    </select>
+                  </label>
+                  <label class="field">
+                    <span class="field__label">Model (opcjonalnie)</span>
+                    <input
+                      type="text"
+                      name="deviceModel"
+                      placeholder="np. Vitodens 200"
+                      data-field-device-model
+                    />
+                  </label>
+                </div>
+              </div>
+            </fieldset>
+
+            <!-- Step: location -->
+            <fieldset class="form-step" data-step="location">
+              <legend>Adres i dostęp</legend>
+              <div class="step-content">
+                <div class="form-section form-section--address-grid">
+                  <label class="field">
+                    <span class="field__label">Ulica i numer*</span>
+                    <input type="text" name="street" autocomplete="address-line1" required data-field-street />
+                  </label>
+                  <label class="field">
+                    <span class="field__label">Kod pocztowy*</span>
+                    <input type="text" name="postalCode" autocomplete="postal-code" required data-field-postal />
+                  </label>
+                  <label class="field">
+                    <span class="field__label">Miasto*</span>
+                    <input type="text" name="city" autocomplete="address-level2" required data-field-city />
+                  </label>
+                </div>
+
+                <div class="form-section">
+                  <label class="field">
+                    <span class="field__label">Dodatkowe wskazówki dojazdu</span>
+                    <textarea name="directions" rows="2" placeholder="Np. brama od ul. Ogrodowej, kod do furtki 2580." data-field-directions></textarea>
+                  </label>
+                </div>
+
+                <div class="form-section">
+                  <p class="form-section__label">Preferowany termin*</p>
+                  <div class="options-grid options-grid--wrap" data-availability-options></div>
+                  <label class="field">
+                    <span class="field__label">Jeśli inny termin, wpisz który</span>
+                    <input type="text" name="preferredTime" placeholder="Np. 12.12 po 16:00" data-field-preferred />
+                  </label>
+                </div>
+              </div>
+            </fieldset>
+
+            <!-- Step: contact -->
+            <fieldset class="form-step" data-step="contact">
+              <legend>Dane kontaktowe</legend>
+              <div class="step-content">
+                <div class="form-section">
+                  <p class="form-section__label">Typ klienta*</p>
+                  <div class="options-inline">
+                    <label class="radio">
+                      <input type="radio" name="clientType" value="individual" checked data-field-client-type />
+                      <span>Klient prywatny</span>
+                    </label>
+                    <label class="radio">
+                      <input type="radio" name="clientType" value="business" data-field-client-type />
+                      <span>Firma</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div class="form-section form-section--two-cols" data-section-individual>
+                  <label class="field">
+                    <span class="field__label">Imię*</span>
+                    <input type="text" name="firstName" autocomplete="given-name" required data-field-first-name />
+                  </label>
+                  <label class="field">
+                    <span class="field__label">Nazwisko*</span>
+                    <input type="text" name="lastName" autocomplete="family-name" required data-field-last-name />
+                  </label>
+                </div>
+
+                <div class="form-section" data-section-business hidden>
+                  <label class="field">
+                    <span class="field__label">Nazwa firmy*</span>
+                    <input type="text" name="companyName" autocomplete="organization" data-field-company-name />
+                  </label>
+                </div>
+
+                <div class="form-section form-section--two-cols" data-section-business hidden>
+                  <label class="field">
+                    <span class="field__label">Imię osoby kontaktowej</span>
+                    <input type="text" name="contactFirstName" autocomplete="given-name" data-field-contact-first />
+                  </label>
+                  <label class="field">
+                    <span class="field__label">Nazwisko osoby kontaktowej</span>
+                    <input type="text" name="contactLastName" autocomplete="family-name" data-field-contact-last />
+                  </label>
+                </div>
+
+                <div class="form-section form-section--two-cols">
+                  <label class="field">
+                    <span class="field__label">Telefon*</span>
+                    <input type="tel" name="phone" autocomplete="tel" required data-field-phone />
+                  </label>
+                  <label class="field">
+                    <span class="field__label">Adres e-mail</span>
+                    <input type="email" name="email" autocomplete="email" placeholder="Do wysłania potwierdzenia" data-field-email />
+                  </label>
+                </div>
+
+                <div class="form-section form-section--two-cols">
+                  <label class="field">
+                    <span class="field__label">NIP (jeśli firma)</span>
+                    <input type="text" name="nip" autocomplete="organization" placeholder="Opcjonalnie" data-field-nip />
+                  </label>
+                  <div class="field-placeholder"></div>
+                </div>
+
+                <div class="form-section">
+                  <label class="checkbox">
+                    <input type="checkbox" name="existingClient" data-field-existing />
+                    <span>Jestem stałym klientem – instalacja była u Was na serwisie</span>
+                  </label>
+                  <label class="checkbox">
+                    <input type="checkbox" name="emergency" data-field-urgent />
+                    <span>Zgłoszenie pilne – brak ogrzewania / pęknięcie / zalanie</span>
+                  </label>
+                </div>
+              </div>
+            </fieldset>
+
+            <!-- Step: summary -->
+            <fieldset class="form-step" data-step="summary">
+              <legend>Podsumowanie</legend>
+              <div class="step-content">
+                <div class="summary" data-summary></div>
+                <label class="checkbox checkbox--policy">
+                  <input type="checkbox" name="privacyPolicy" required data-field-policy />
+                  <span>Akceptuję przetwarzanie danych w celu obsługi zgłoszenia i kontaktu zgodnie z polityką prywatności.</span>
+                </label>
+              </div>
+            </fieldset>
+
+            <div class="form-actions">
+              <button type="button" class="btn btn--ghost" data-btn-prev>Wstecz</button>
+              <button type="button" class="btn" data-btn-next>Dalej</button>
+              <button type="submit" class="btn btn--primary" data-btn-submit>Wyślij zgłoszenie</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="success-card" data-success hidden>
+          <div class="success-card__icon">✓</div>
+          <h2>Dziękujemy – zgłoszenie dotarło!</h2>
+          <p>Potwierdzenie wysłaliśmy na podane dane. Nasz technik oddzwoni, aby potwierdzić termin i szczegóły wizyty.</p>
+          <button type="button" class="btn btn--primary" data-btn-new>Wyślij kolejne zgłoszenie</button>
+          <p class="success-card__meta">Jeśli to nagła awaria, możesz zadzwonić bezpośrednio: <span data-company-phone-inline></span></p>
+        </section>
+      </main>
+    </div>
+
+    <div class="modal" hidden data-service-modal>
+      <div class="modal__backdrop" data-close-modal></div>
+      <div class="modal__dialog">
+        <button class="modal__close" data-close-modal aria-label="Zamknij">&times;</button>
+        <div class="modal__content" data-modal-content></div>
+      </div>
+    </div>
+
+    <div class="toast" hidden data-toast></div>
+
+    <script type="module" src="/js/landing.js"></script>
+  </body>
+</html>

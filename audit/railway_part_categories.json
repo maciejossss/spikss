@@ -1,0 +1,232 @@
+[
+  {
+    "id": 1,
+    "name": "ADAPTER",
+    "description": "",
+    "sort_order": 0,
+    "is_active": true,
+    "parent_id": null,
+    "created_at": "2025-08-17T19:49:00.647Z",
+    "updated_at": "2025-10-27T11:42:01.894Z"
+  },
+  {
+    "id": 45,
+    "name": "CZĘŚCI Viessmann",
+    "description": "kategoria test",
+    "sort_order": 0,
+    "is_active": true,
+    "parent_id": null,
+    "created_at": "2025-10-16T08:37:16.343Z",
+    "updated_at": "2025-10-27T11:42:32.060Z"
+  },
+  {
+    "id": 46,
+    "name": "elektroda",
+    "description": "",
+    "sort_order": 0,
+    "is_active": true,
+    "parent_id": 45,
+    "created_at": "2025-10-17T09:08:37.244Z",
+    "updated_at": "2025-10-17T09:08:37.244Z"
+  },
+  {
+    "id": 2,
+    "name": "Kotły olejowe",
+    "description": null,
+    "sort_order": 2,
+    "is_active": true,
+    "parent_id": null,
+    "created_at": "2025-08-18T05:58:08.335Z",
+    "updated_at": "2025-08-18T05:58:08.335Z"
+  },
+  {
+    "id": 3,
+    "name": "Palniki gazowe/olejowe",
+    "description": null,
+    "sort_order": 3,
+    "is_active": true,
+    "parent_id": null,
+    "created_at": "2025-08-18T05:58:08.512Z",
+    "updated_at": "2025-08-18T05:58:08.512Z"
+  },
+  {
+    "id": 4,
+    "name": "Automatyka i sterowanie",
+    "description": null,
+    "sort_order": 4,
+    "is_active": true,
+    "parent_id": null,
+    "created_at": "2025-08-18T05:58:08.713Z",
+    "updated_at": "2025-08-18T05:58:08.713Z"
+  },
+  {
+    "id": 5,
+    "name": "Wyposażenie serwisanta",
+    "description": null,
+    "sort_order": 5,
+    "is_active": true,
+    "parent_id": null,
+    "created_at": "2025-08-18T05:58:08.919Z",
+    "updated_at": "2025-08-18T05:58:08.919Z"
+  },
+  {
+    "id": 29,
+    "name": "Komplety uszczelek serwisowych",
+    "description": "Riello G3/G5, Weishaupt WL5, Bentone B2, Ecoflam Minor",
+    "sort_order": 10,
+    "is_active": true,
+    "parent_id": 3,
+    "created_at": "2025-08-18T05:58:12.100Z",
+    "updated_at": "2025-08-18T05:58:12.100Z"
+  },
+  {
+    "id": 35,
+    "name": "Moduły sterujące",
+    "description": "Honeywell S4565, Siemens LME11, Elster Kromschröder BCU",
+    "sort_order": 10,
+    "is_active": true,
+    "parent_id": 4,
+    "created_at": "2025-08-18T05:58:13.355Z",
+    "updated_at": "2025-08-18T05:58:13.355Z"
+  },
+  {
+    "id": 40,
+    "name": "Zestaw uszczelek uniwersalnych",
+    "description": "silikonowe, włókninowe, FKM",
+    "sort_order": 10,
+    "is_active": true,
+    "parent_id": 5,
+    "created_at": "2025-08-18T05:58:14.247Z",
+    "updated_at": "2025-08-18T05:58:14.247Z"
+  },
+  {
+    "id": 41,
+    "name": "Analizator spalin",
+    "description": "Testo 320/330, Kimo",
+    "sort_order": 20,
+    "is_active": true,
+    "parent_id": 5,
+    "created_at": "2025-08-18T05:58:14.297Z",
+    "updated_at": "2025-08-18T05:58:14.297Z"
+  },
+  {
+    "id": 36,
+    "name": "Regulatory temperatury kotła/pomieszczenia",
+    "description": "Vaillant calorMATIC, Viessmann Vitotrol, Siemens REV24",
+    "sort_order": 20,
+    "is_active": true,
+    "parent_id": 4,
+    "created_at": "2025-08-18T05:58:13.529Z",
+    "updated_at": "2025-08-18T05:58:13.529Z"
+  },
+  {
+    "id": 30,
+    "name": "Zawory elektromagnetyczne gazowe/olejowe",
+    "description": "Dungs MB-DLE 405, Honeywell V4600, Danfoss EV250",
+    "sort_order": 20,
+    "is_active": true,
+    "parent_id": 3,
+    "created_at": "2025-08-18T05:58:12.404Z",
+    "updated_at": "2025-08-18T05:58:12.404Z"
+  },
+  {
+    "id": 31,
+    "name": "Dysze gazowe",
+    "description": "do LPG/gaz ziemny, średnice 0,8–2,0 mm",
+    "sort_order": 30,
+    "is_active": true,
+    "parent_id": 3,
+    "created_at": "2025-08-18T05:58:12.614Z",
+    "updated_at": "2025-08-18T05:58:12.614Z"
+  },
+  {
+    "id": 42,
+    "name": "Manometry",
+    "description": "0–50 mbar, 0–500 mbar, 0–3 bar",
+    "sort_order": 30,
+    "is_active": true,
+    "parent_id": 5,
+    "created_at": "2025-08-18T05:58:14.765Z",
+    "updated_at": "2025-08-18T05:58:14.765Z"
+  },
+  {
+    "id": 37,
+    "name": "Termostaty bezpieczeństwa STB",
+    "description": "100–120 °C, reset ręczny/automatyczny",
+    "sort_order": 30,
+    "is_active": true,
+    "parent_id": 4,
+    "created_at": "2025-08-18T05:58:13.689Z",
+    "updated_at": "2025-08-18T05:58:13.689Z"
+  },
+  {
+    "id": 38,
+    "name": "Czujniki temperatury",
+    "description": "NTC 10kΩ, PT1000 – rurkowe i kontaktowe",
+    "sort_order": 40,
+    "is_active": true,
+    "parent_id": 4,
+    "created_at": "2025-08-18T05:58:13.951Z",
+    "updated_at": "2025-08-18T05:58:13.951Z"
+  },
+  {
+    "id": 32,
+    "name": "Manometry i presostaty gazu/oleju",
+    "description": "zakresy 0–50 mbar, 0–500 mbar, 0–3 bar",
+    "sort_order": 40,
+    "is_active": true,
+    "parent_id": 3,
+    "created_at": "2025-08-18T05:58:12.677Z",
+    "updated_at": "2025-08-18T05:58:12.677Z"
+  },
+  {
+    "id": 43,
+    "name": "Zestaw kluczy",
+    "description": "torx, imbusy, nasadki 1/4” i 1/2”",
+    "sort_order": 40,
+    "is_active": true,
+    "parent_id": 5,
+    "created_at": "2025-08-18T05:58:14.819Z",
+    "updated_at": "2025-08-18T05:58:14.819Z"
+  },
+  {
+    "id": 44,
+    "name": "Chemia serwisowa",
+    "description": "Fernox DS40; spray do wymienników; smar Molykote 111",
+    "sort_order": 50,
+    "is_active": true,
+    "parent_id": 5,
+    "created_at": "2025-08-18T05:58:15.065Z",
+    "updated_at": "2025-08-18T05:58:15.065Z"
+  },
+  {
+    "id": 33,
+    "name": "Elektrody zapłonowe i czujniki płomienia",
+    "description": "IR/UV przemysłowe",
+    "sort_order": 50,
+    "is_active": true,
+    "parent_id": 3,
+    "created_at": "2025-08-18T05:58:12.916Z",
+    "updated_at": "2025-08-18T05:58:12.916Z"
+  },
+  {
+    "id": 39,
+    "name": "Przekaźniki czasowe",
+    "description": "Finder, Relpol (0–600 s)",
+    "sort_order": 50,
+    "is_active": true,
+    "parent_id": 4,
+    "created_at": "2025-08-18T05:58:14.045Z",
+    "updated_at": "2025-08-18T05:58:14.045Z"
+  },
+  {
+    "id": 34,
+    "name": "Łożyska i wirniki wentylatorów",
+    "description": "EBM-Papst, Ziehl-Abegg",
+    "sort_order": 60,
+    "is_active": true,
+    "parent_id": 3,
+    "created_at": "2025-08-18T05:58:13.116Z",
+    "updated_at": "2025-08-18T05:58:13.116Z"
+  }
+]

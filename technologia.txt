@@ -1,0 +1,86 @@
+Technologie i języki – szybki przegląd
+Języki: JavaScript (ES2020+), HTML, CSS, SQL (SQLite/PostgreSQL)
+UI/ikony/stylowanie: Vue 3 (Composition API), Tailwind CSS, Font Awesome
+HTTP: Fetch API, JSON, REST
+Aplikacja desktop (Electron)
+Framework: Electron (renderer: Vue 3 + Vite; main: Node.js)
+Lokalny serwer API: Express w procesie Electron (desktop/src/electron/api-server.js)
+Baza danych: SQLite (WAL, indeksy; bezpośrednio przez warstwę DB w Electron)
+IPC/mostek: preload.js eksponuje window.electronAPI (DB, PDF, itp.)
+PDF: generowanie PDF (offscreen print z HTML, dialog zapisu)
+Funkcje: listy zleceń/klientów/urządzeń, formularze, kalendarz, raporty, „Monitor Prac Mobilnych”
+Aplikacja mobilna (PWA)
+Framework: Vue 3 (cdn, SPA w public/)
+Stylowanie: Tailwind CSS
+Funkcje: lista zleceń serwisanta, szczegóły zlecenia, start/koniec pracy, zdjęcia, kalendarz-podgląd
+Źródło danych: Railway API (fallbacki/łączenie ścieżek obrazów)
+Backend (Railway)
+Platforma: Railway
+Technologia: Node.js + Express (server.js)
+Baza: PostgreSQL
+Endpointy:
+Sync: /api/sync/devices|clients|orders|assign
+Desktop proxy: /api/desktop/orders/:userId, /api/desktop/orders/by-id/:id, statusy, zdjęcia
+Service requests (REQ): tworzenie/zmiana statusu
+Pliki urządzeń: /api/devices/:deviceId/files
+Status pracy: PUT /api/desktop/orders/:orderId/status (np. in_progress)
+Synchronizacja i przepływy
+Pre‑sync: najpierw users/devices/clients, potem orders/assign
+UPSERT: łagodzenie konfliktów (ON CONFLICT / aktualizacje po order_number)
+Fallbacki: desktopowy proxy łączy dane z Railway (w tym dopasowanie po order_number)
+Zdjęcia i pliki
+Źródło: PWA dołącza work_photos; serwowanie przez Railway /uploads
+Desktop: import przez własne endpointy/proxy; ścieżki relatywne transformowane do URL
+Wydajność i stabilność
+SQLite: WAL, indeksy; transakcyjna kasacja klienta i historii
+Poll/odświeżanie: okresowe fetch’e (brak WebSocketów)
+Cache busting: wersjonowanie skryptów PWA
+Narzędzia/build
+Desktop: Vite (dev), Electron runner
+PWA: statyczne pliki serwowane z Railway
+Logowanie: szczegółowe logi w konsoli (kroki MAIN.JS), logi API w desktopie/serwerze
+Jeśli chcesz, mogę wygenerować krótką mapę modułów z plikami i odpowiedzialnościami.
+
+Mapa modułów i odpowiedzialności
+Desktop (Electron + Vue 3 + SQLite)
+Core
+desktop/src/electron/main.js: proces główny Electron, uruchamia serwer API i okno aplikacji
+desktop/src/electron/preload.js: most window.electronAPI (DB, PDF, itp.)
+desktop/src/electron/api-server.js: lokalny Express (endpointy desktopu, proxy do Railway, timery, import/eksport)
+desktop/src/electron/database.js: inicjalizacja SQLite (WAL, indeksy)
+desktop/env-config.js: adresy bazowe API, tryby pracy
+Widoki (renderer, Vue 3)
+desktop/src/views/orders/OrdersList.vue: lista zleceń, sync, konwersja REQ→order, filtracja/paginacja
+desktop/src/views/orders/OrderDetails.vue: szczegóły zlecenia, “Sprawdź zdjęcia”, start/finish
+desktop/src/views/orders/OrderFormModal.vue: tworzenie/edycja zlecenia, kategorie usług
+desktop/src/views/MobileMonitor.vue: podgląd aktywnych prac (timery + fallback Railway)
+desktop/src/views/clients/ClientsList.vue: klienci, twarde usuwanie z historią
+desktop/src/views/devices/DeviceDetails.vue: szczegóły urządzeń
+desktop/src/views/Calendar.vue: kalendarz, kolory per technik
+desktop/src/views/Reports.vue: raporty + generowanie PDF
+desktop/src/views/Dashboard.vue: KPI z SQLite (klienci, urządzenia, zlecenia, itp.)
+Wejście aplikacji renderer
+desktop/src/main.js: bootstrap Vue (kroki MAIN.JS w konsoli)
+(opcjonalnie) router/store, jeśli obecne w desktop/src
+PWA (Vue 3 + Tailwind, statycznie serwowane)
+public/index.html: layout, widoki (lista zleceń, szczegóły, kalendarz)
+public/js/app.js: logika PWA (pobieranie zleceń, start/finish, zdjęcia, kalendarz)
+public/js/config.js: autodetekcja środowiska (Railway/localhost)
+Backend (Railway: Node.js + Express + PostgreSQL)
+server.js:
+Zlecenia dla technika: GET /api/desktop/orders/:userId
+Pojedyncze zlecenie: GET /api/desktop/orders/by-id/:id
+Status zlecenia z PWA: PUT /api/desktop/orders/:orderId/status
+Sync: POST /api/sync/devices|clients|orders, PUT /api/sync/assign
+Service requests (REQ): POST /api/service-requests, PUT /api/service-requests/:id/status
+Pliki urządzeń: GET /api/devices/:deviceId/files
+Synchronizacja/przepływy
+Pre‑sync (desktop→Railway): users/devices/clients → orders → assign
+Import zdjęć/rekordów: desktop proxy + importer po order_number
+Fallbacki: desktopowy proxy do Railway, filtrowanie “in_progress” dla Monitora
+Kluczowe technologie
+JavaScript (Node/Browser), Vue 3 (Composition API), Electron, Express
+Bazy: SQLite (desktop), PostgreSQL (Railway)
+Styl: Tailwind CSS, Font Awesome
+PDF: render HTML → PDF w Electron
+API: REST/JSON, Fetch API

@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Serwis Palników i Kotłów — Nowy Landing</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              brand: { 600: '#2563eb', 500: '#3b82f6' },
+              accent: { 500: '#06b6d4' }
+            }
+          }
+        }
+      }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+      html,body{height:100%}
+      body{font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,'Helvetica Neue',Arial}
+      /* Simple marquee animation for the hero action bar */
+      @keyframes marquee {
+        0% { transform: translateX(0); }
+        100% { transform: translateX(-50%); }
+      }
+      .animate-marquee {
+        display: inline-block;
+        padding-left: 100%;
+        animation: marquee 12s linear infinite;
+        white-space: nowrap;
+      }
+    </style>
+  </head>
+  <body class="min-h-screen bg-gradient-to-br from-slate-50 to-white text-slate-800">
+    <!-- Top bar -->
+    <header class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="h-8 w-8 rounded-md bg-brand-600"></div>
+        <div class="font-semibold tracking-tight">Serwis Palników i Kotłów</div>
+      </div>
+      <nav class="hidden md:flex items-center gap-2">
+        <a href="#uslugi" class="text-sm px-3 py-2 rounded-md hover:bg-slate-100">Usługi</a>
+        <a href="#kontakt" class="text-sm px-3 py-2 rounded-md hover:bg-slate-100">Kontakt</a>
+      </nav>
+    </header>
+
+    <!-- Hero split -->
+    <section class="max-w-7xl mx-auto px-6 py-10 grid md:grid-cols-2 gap-10 items-center">
+      <div>
+        <h1 id="hero-title" class="text-3xl md:text-5xl font-semibold leading-tight tracking-tight">Profesjonalny serwis palników i kotłów — szybko, przejrzyście, bez przestojów</h1>
+        <p id="hero-subtitle" class="mt-4 text-slate-600 md:text-lg">Obsługujemy klientów indywidualnych i firmy: instalacje wod‑kan, CO i gaz, kotłownie oraz serwis kotłów wszystkich marek.</p>
+        <div class="mt-6 flex flex-col sm:flex-row gap-3">
+          <a id="cta-client" href="/portal/login" class="px-5 py-3 rounded-lg bg-brand-600 text-white hover:brightness-105">Logowanie dla klientów</a>
+          <a id="cta-tech" href="/mobile" class="px-5 py-3 rounded-lg bg-red-600 text-white hover:brightness-105">Formularz zgłoszenia serwisowego</a>
+        </div>
+        <div class="mt-6 flex items-center gap-4 text-sm text-slate-500">
+          <div class="flex items-center gap-2"><span class="h-2 w-2 rounded-full bg-brand-600"></span> Dyspozycyjność 24/7</div>
+          <div class="flex items-center gap-2"><span class="h-2 w-2 rounded-full bg-accent-500"></span> Zgłoszenia online</div>
+        </div>
+      </div>
+      <!-- abstract illustration -->
+      <div class="relative h-[320px] md:h-[420px]" id="hero-rotator">
+        <div class="absolute inset-0 rounded-3xl bg-gradient-to-br from-brand-500/20 to-accent-500/20"></div>
+        <div class="absolute right-6 top-6 h-24 w-40 rounded-2xl bg-white shadow-md overflow-hidden rotate-card"><img class="w-full h-full object-cover"/></div>
+        <div class="absolute left-10 top-14 h-36 w-60 rounded-2xl bg-white shadow-md overflow-hidden rotate-card delay-150"><img class="w-full h-full object-cover"/></div>
+        <div class="absolute left-1/3 top-1/4 h-40 w-72 rounded-3xl bg-white shadow-lg overflow-hidden rotate-card delay-300"><img class="w-full h-full object-cover"/></div>
+        <div class="absolute right-16 bottom-10 h-20 w-20 rounded-full bg-brand-600/20"></div>
+        <!-- Full-width action bar linking to the service form -->
+        <a href="/mobile" class="absolute left-6 right-6 bottom-6 h-12 rounded-xl bg-brand-600 text-white flex items-center overflow-hidden shadow-md">
+          <div class="animate-marquee">
+            <span class="mx-6">Wyślij zgłoszenie serwisowe — kliknij tutaj</span>
+            <span class="mx-6">Wyślij zgłoszenie serwisowe — kliknij tutaj</span>
+          </div>
+        </a>
+      </div>
+    </section>
+
+    <!-- Services grid -->
+    <section id="uslugi" class="max-w-7xl mx-auto px-6 pb-12">
+      <div id="services-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <a href="#" class="rounded-xl bg-white border border-slate-200 p-5 hover:shadow-sm transition">
+          <div class="h-9 w-9 rounded-md bg-sky-100 text-sky-600 grid place-content-center mb-2">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5"><path d="M12 2a7 7 0 0 0-7 7v2H3a1 1 0 1 0 0 2h2v2a7 7 0 0 0 14 0v-2h2a1 1 0 1 0 0-2h-2V9a7 7 0 0 0-7-7Z"/></svg>
+          </div>
+          <div class="font-semibold">Instalacje wod‑kan</div>
+          <div class="text-sm text-slate-600">Montaż i serwis instalacji.</div>
+        </a>
+        <a href="#" class="rounded-xl bg-white border border-slate-200 p-5 hover:shadow-sm transition">
+          <div class="h-9 w-9 rounded-md bg-blue-100 text-blue-600 grid place-content-center mb-2">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5"><path d="M20 8H4a2 2 0 0 0-2 2v8h20v-8a2 2 0 0 0-2-2ZM7 6h10l1-2H6l1 2Z"/></svg>
+          </div>
+          <div class="font-semibold">Ogrzewanie / podłogówka</div>
+          <div class="text-sm text-slate-600">Grzejniki, modernizacje kotłowni.</div>
+        </a>
+        <a href="#" class="rounded-xl bg-white border border-slate-200 p-5 hover:shadow-sm transition">
+          <div class="h-9 w-9 rounded-md bg-rose-100 text-rose-600 grid place-content-center mb-2">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5"><path d="M12 3c2 2.5 3 4.833 3 7a3 3 0 1 1-6 0c0-2.167 1-4.5 3-7Z"/></svg>
+          </div>
+          <div class="font-semibold">Instalacje gazowe</div>
+          <div class="text-sm text-slate-600">Przyłącza, odbiory, przeglądy.</div>
+        </a>
+        <a href="#" class="rounded-xl bg-white border border-slate-200 p-5 hover:shadow-sm transition">
+          <div class="h-9 w-9 rounded-md bg-indigo-100 text-indigo-600 grid place-content-center mb-2">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5"><path d="M5 6h14v12H5zM3 8h2v8H3zm16 0h2v8h-2z"/></svg>
+          </div>
+          <div class="font-semibold">Kotłownie i serwis kotłów</div>
+          <div class="text-sm text-slate-600">Gazowe i olejowe — wszystkie marki.</div>
+        </a>
+      </div>
+    </section>
+
+    <footer id="kontakt" class="border-t bg-white/70">
+      <div id="footer-text" class="max-w-7xl mx-auto px-6 py-6 text-sm text-slate-500">© 2025 Serwis Palników i Kotłów – Czarnków</div>
+    </footer>
+
+    <script src="/website/rotator.js?v=2" defer></script>
+    <script src="/website/site.js?v=2" defer></script>
+    <!-- Modal wyboru obrazu (dla edycji inline) -->
+    <div id="imagePickerModal" class="fixed inset-0 hidden bg-black/60 z-50 items-center justify-center">
+      <div class="bg-white rounded-xl p-4 w-full max-w-4xl max-h-[80vh] overflow-auto">
+        <div class="flex items-center justify-between mb-3">
+          <div class="font-semibold">Wybierz obraz</div>
+          <button id="imagePickerClose" class="px-2 py-1 bg-slate-200 rounded">Zamknij</button>
+        </div>
+        <div id="imagePickerGrid" class="grid grid-cols-2 md:grid-cols-4 gap-3"></div>
+      </div>
+    </div>
+  </body>
+  </html>
+
+

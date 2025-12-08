@@ -13,8 +13,8 @@ app.use(express.json());
 // Serwowanie plików statycznych aplikacji mobilnej
 app.use(express.static(path.join(__dirname, 'mobile')));
 
-// API mobilne - proxy do aplikacji desktop
-app.get('/api/mobile/orders/:userId', async (req, res) => {
+// API mobilne - proxy do aplikacji desktop (zgodnie z PWA, które woła /api/desktop/...)
+app.get('/api/desktop/orders/:userId', async (req, res) => {
   try {
     // Próba połączenia z aplikacją desktop na localhost:5174 (nowy API server)
     const fetch = (await import('node-fetch')).default;
@@ -35,8 +35,8 @@ app.get('/api/mobile/orders/:userId', async (req, res) => {
   }
 });
 
-// Aktualizacja statusu zlecenia
-app.put('/api/mobile/orders/:orderId/status', async (req, res) => {
+// Aktualizacja statusu zlecenia (zgodnie z PWA)
+app.put('/api/desktop/orders/:orderId/status', async (req, res) => {
   try {
     const { status, completedCategories, photos, notes } = req.body;
     

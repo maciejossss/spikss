@@ -718,6 +718,158 @@
           </div>
         </div>
 
+<!-- Diagnostyka Railway -->
+<div v-if="activeSection === 'railway'" class="space-y-6">
+  <div class="bg-white rounded-lg shadow p-6">
+    <h2 class="text-lg font-semibold text-secondary-900 mb-4">
+      <i class="fas fa-database mr-2 text-purple-600"></i>
+      Diagnostyka Railway
+    </h2>
+    <p class="text-sm text-secondary-600 mb-4">
+      Analiza porównuje rekordy pomiędzy lokalną bazą SQLite a Railway PostgreSQL. Raport nie usuwa danych – służy jako wskazówka, które rekordy należy sprawdzić ręcznie.
+    </p>
+    <div class="flex flex-wrap gap-3 mb-6">
+      <button
+        @click="runRailwayDiagnostics('clients')"
+        :disabled="railwayDiagnostics.loading"
+        class="inline-flex items-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+      >
+        <i class="fas fa-user-check"></i>
+        Analiza klientów
+      </button>
+      <button
+        @click="runRailwayDiagnostics('devices')"
+        :disabled="railwayDiagnostics.loading"
+        class="inline-flex items-center gap-2 bg-secondary-600 text-white px-4 py-2 rounded-md hover:bg-secondary-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+      >
+        <i class="fas fa-toolbox"></i>
+        Analiza urządzeń
+      </button>
+      <button
+        @click="runRailwayDiagnostics('orders')"
+        :disabled="railwayDiagnostics.loading"
+        class="inline-flex items-center gap-2 bg-orange-600 text-white px-4 py-2 rounded-md hover:bg-orange-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+      >
+        <i class="fas fa-tasks"></i>
+        Analiza zleceń
+      </button>
+    </div>
+
+    <div v-if="railwayDiagnostics.loading" class="text-sm text-secondary-600">
+      Analiza w toku… Potrwa maksymalnie kilkanaście sekund.
+    </div>
+
+    <div v-if="railwayDiagnostics.error" class="text-sm text-red-600">
+      {{ railwayDiagnostics.error }}
+    </div>
+
+    <div
+      v-if="railwayDiagnostics.result && !railwayDiagnostics.loading"
+      class="space-y-4"
+    >
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="bg-secondary-50 border border-secondary-200 rounded-lg p-3">
+          <p class="text-xs uppercase text-secondary-500">Rekordy desktop</p>
+          <p class="text-lg font-semibold text-secondary-900">
+            {{ railwaySummary?.desktop ?? 0 }}
+          </p>
+        </div>
+        <div class="bg-secondary-50 border border-secondary-200 rounded-lg p-3">
+          <p class="text-xs uppercase text-secondary-500">Rekordy Railway</p>
+          <p class="text-lg font-semibold text-secondary-900">
+            {{ railwaySummary?.railway ?? 0 }}
+          </p>
+        </div>
+        <div class="bg-secondary-50 border border-secondary-200 rounded-lg p-3">
+          <p class="text-xs uppercase text-secondary-500">Ostatnia analiza</p>
+          <p class="text-sm text-secondary-800">
+            {{ railwayDiagnostics.timestamp ? new Date(railwayDiagnostics.timestamp).toLocaleString() : '—' }}
+          </p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="bg-white border border-secondary-200 rounded-lg p-3">
+          <p class="text-xs uppercase text-secondary-500">Duplikaty w Railway</p>
+          <p class="text-lg font-semibold text-secondary-900">{{ railwaySummary?.duplicates ?? 0 }}</p>
+        </div>
+        <div class="bg-white border border-secondary-200 rounded-lg p-3">
+          <p class="text-xs uppercase text-secondary-500">Rozbieżności pól</p>
+          <p class="text-lg font-semibold text-secondary-900">{{ railwaySummary?.mismatches ?? 0 }}</p>
+        </div>
+        <div class="bg-white border border-secondary-200 rounded-lg p-3">
+          <p class="text-xs uppercase text-secondary-500">Tylko po jednej stronie</p>
+          <p class="text-sm text-secondary-800">
+            Desktop: {{ railwaySummary?.onlyDesktop ?? 0 }}<br>
+            Railway: {{ railwaySummary?.onlyRailway ?? 0 }}
+          </p>
+        </div>
+      </div>
+
+      <div class="space-y-3">
+        <div v-if="railwayDiagnostics.result.duplicates?.length">
+          <h3 class="text-sm font-semibold text-secondary-900">Duplikaty w Railway</h3>
+          <ul class="list-disc pl-5 text-sm text-secondary-700 space-y-1">
+            <li
+              v-for="item in railwayDiagnostics.result.duplicates"
+              :key="`dup-${item.key}`"
+            >
+              <span class="font-medium">{{ item.key }}</span> — {{ item.items.map(entry => `ID ${entry.id}: ${entry.summary}`).join('; ') }}
+            </li>
+          </ul>
+        </div>
+
+        <div v-if="railwayDiagnostics.result.mismatches?.length">
+          <h3 class="text-sm font-semibold text-secondary-900">Rozbieżności danych</h3>
+          <ul class="list-disc pl-5 text-sm text-secondary-700 space-y-2">
+            <li
+              v-for="row in railwayDiagnostics.result.mismatches"
+              :key="`mis-${row.key}`"
+            >
+              <p class="font-medium">{{ row.key }}</p>
+              <p>
+                <span class="text-secondary-600">Różnice:</span>
+                {{ row.differences.map(diff => `${diff.field}: desktop='${diff.desktop ?? 'null'}', railway='${diff.railway ?? 'null'}'`).join('; ') }}
+              </p>
+            </li>
+          </ul>
+        </div>
+
+        <div v-if="railwayDiagnostics.result.onlyDesktop?.length">
+          <h3 class="text-sm font-semibold text-secondary-900">Tylko w desktopie</h3>
+          <ul class="list-disc pl-5 text-sm text-secondary-700 space-y-1">
+            <li
+              v-for="entry in railwayDiagnostics.result.onlyDesktop"
+              :key="`desk-${entry.key}-${entry.id}`"
+            >
+              {{ entry.key }} — {{ entry.summary }}
+            </li>
+          </ul>
+        </div>
+
+        <div v-if="railwayDiagnostics.result.onlyRailway?.length">
+          <h3 class="text-sm font-semibold text-secondary-900">Tylko w Railway</h3>
+          <ul class="list-disc pl-5 text-sm text-secondary-700 space-y-1">
+            <li
+              v-for="entry in railwayDiagnostics.result.onlyRailway"
+              :key="`rail-${entry.key}-${entry.id}`"
+            >
+              {{ entry.key }} — {{ entry.summary }}
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <details class="border border-secondary-200 rounded-lg">
+        <summary class="px-4 py-2 cursor-pointer text-sm font-medium text-secondary-700">
+          Pełny raport JSON
+        </summary>
+        <pre class="px-4 py-3 text-xs bg-secondary-50 overflow-x-auto whitespace-pre-wrap">{{ formattedRailwayJson }}</pre>
+      </details>
+    </div>
+  </div>
+</div>
+
         <!-- Bezpieczeństwo -->
         <div v-if="activeSection === 'security'" class="space-y-6">
           <div class="bg-white rounded-lg shadow p-6">
@@ -1166,9 +1318,41 @@ const sections = [
   { id: 'company', name: 'Firma', icon: 'fas fa-building' },
   { id: 'system', name: 'System', icon: 'fas fa-cogs' },
   { id: 'backup', name: 'Backup', icon: 'fas fa-shield-alt' },
+  { id: 'railway', name: 'Railway', icon: 'fas fa-database' },
   { id: 'security', name: 'Bezpieczeństwo', icon: 'fas fa-lock' },
   { id: 'about', name: 'O aplikacji', icon: 'fas fa-info-circle' }
 ]
+
+const railwayDiagnostics = ref({
+  loading: false,
+  error: '',
+  lastKind: null,
+  result: null,
+  timestamp: null
+})
+
+const railwaySummary = computed(() => {
+  const result = railwayDiagnostics.value.result
+  if (!result) return null
+  return {
+    desktop: result?.totals?.desktop ?? 0,
+    railway: result?.totals?.railway ?? 0,
+    duplicates: Array.isArray(result?.duplicates) ? result.duplicates.length : 0,
+    mismatches: Array.isArray(result?.mismatches) ? result.mismatches.length : 0,
+    onlyDesktop: Array.isArray(result?.onlyDesktop) ? result.onlyDesktop.length : 0,
+    onlyRailway: Array.isArray(result?.onlyRailway) ? result.onlyRailway.length : 0
+  }
+})
+
+const formattedRailwayJson = computed(() => {
+  if (!railwayDiagnostics.value.result) return ''
+  try {
+    return JSON.stringify(railwayDiagnostics.value.result, null, 2)
+  } catch (error) {
+    console.error('Nie udało się sformatować raportu Railway:', error)
+    return ''
+  }
+})
 
 const profile = ref({
   firstName: 'Jan',
@@ -1808,15 +1992,46 @@ const openLogs = () => {
 
 const exportDiagnostics = async () => {
   try {
-    if (window.electronAPI?.diagnostics) {
-      const diagnosticsPath = await window.electronAPI.diagnostics.export()
-      alert(`Dane diagnostyczne zostały wyeksportowane: ${diagnosticsPath}`)
-    } else {
+    if (!window.electronAPI?.diagnostics || typeof window.electronAPI.diagnostics.export !== 'function') {
       alert('Eksport diagnostyki dostępny tylko w aplikacji desktop')
+      return
     }
+    const diagnosticsPath = await window.electronAPI.diagnostics.export()
+    alert(`Dane diagnostyczne zostały wyeksportowane: ${diagnosticsPath}`)
   } catch (error) {
     console.error('Błąd podczas eksportu diagnostyki:', error)
-    alert('Wystąpił błąd podczas eksportu diagnostyki')
+    if (error?.message === 'NOT_IMPLEMENTED') {
+      alert('Eksport diagnostyki dostępny tylko w aplikacji desktop')
+    } else {
+      alert('Wystąpił błąd podczas eksportu diagnostyki')
+    }
+  }
+}
+
+const runRailwayDiagnostics = async (kind) => {
+  if (!['clients', 'devices', 'orders'].includes(kind)) {
+    alert('Nieobsługiwany typ analizy')
+    return
+  }
+  if (!window.electronAPI?.diagnostics?.runRailwayCheck) {
+    alert('Diagnostyka Railway dostępna tylko w aplikacji desktop')
+    return
+  }
+
+  railwayDiagnostics.value.loading = true
+  railwayDiagnostics.value.error = ''
+  railwayDiagnostics.value.lastKind = kind
+
+  try {
+    const result = await window.electronAPI.diagnostics.runRailwayCheck(kind)
+    railwayDiagnostics.value.result = result
+    railwayDiagnostics.value.timestamp = result?.timestamp || new Date().toISOString()
+  } catch (error) {
+    console.error('Błąd podczas analizy Railway:', error)
+    railwayDiagnostics.value.error = error?.message || 'Nieznany błąd diagnostyki'
+    railwayDiagnostics.value.result = null
+  } finally {
+    railwayDiagnostics.value.loading = false
   }
 }
 

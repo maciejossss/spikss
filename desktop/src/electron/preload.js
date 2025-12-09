@@ -413,6 +413,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
     }
   },
 
+  diagnostics: {
+    runRailwayCheck: async (entity) => {
+      const result = await ipcRenderer.invoke('diagnostics-railway', entity);
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+      return result.data;
+    },
+    export: async () => {
+      throw new Error('NOT_IMPLEMENTED');
+    }
+  },
+
   protocols: {
     ensureFolder: () => ipcRenderer.invoke('protocols-ensure-folder'),
     exportToRailway: (protocolId) => ipcRenderer.invoke('protocols-export', protocolId),

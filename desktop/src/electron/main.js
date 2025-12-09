@@ -3,7 +3,7 @@ const path = require('path');
 const fs = require('fs').promises;
 const fsSync = require('fs');
 const crypto = require('crypto');
-const railwayDb = require('../railway-backend/database/connection');
+const railwayDb = require('../../railway-backend/database/connection');
 // Prefer Node 18+ global fetch, fallback to node-fetch when missing
 const ensureFetch = async () => {
   if (typeof fetch === 'function') {
@@ -1186,6 +1186,10 @@ const buildDiagnosticsReport = (kind, localRows, railwayRows, options) => {
 
 const collectRailwayDiagnostics = async (kind) => {
   if (!databaseService) throw new Error('Database not initialized');
+  if (!railwayDb.isReady()) {
+    const reason = railwayDb.getInitError() || 'Railway connection disabled';
+    throw new Error(`Railway diagnostics unavailable: ${reason}`);
+  }
 
   switch (kind) {
     case 'clients': {

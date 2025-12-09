@@ -3,31 +3,68 @@ const { Pool } = require('pg');
 class DatabaseConnection {
   constructor() {
     this.pool = null;
+    this.initialized = false;
+    this.initError = null;
     this.init();
   }
 
+  ensurePool() {
+    if (this.pool) {
+      return;
+    }
+    const reason = this.initError || 'PostgreSQL connection not initialized';
+    const error = new Error(`Railway connection unavailable: ${reason}`);
+    error.code = 'RAILWAY_DB_NOT_AVAILABLE';
+    throw error;
+  }
+
   init() {
+    const connectionString = process.env.DATABASE_URL;
+    if (typeof connectionString !== 'string' || !connectionString.trim()) {
+      this.initError = 'Missing DATABASE_URL';
+      console.warn('⚠️ PostgreSQL connection skipped: DATABASE_URL not provided');
+      return;
+    }
+
     const config = {
-      connectionString: process.env.DATABASE_URL,
+      connectionString: connectionString.trim(),
       ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
       max: 20, // Maximum number of clients in the pool
       idleTimeoutMillis: 30000, // How long a client is allowed to remain idle
       connectionTimeoutMillis: 2000, // How long to wait for a connection
     };
 
-    this.pool = new Pool(config);
+    try {
+      this.pool = new Pool(config);
 
-    // Handle pool errors
-    this.pool.on('error', (err) => {
-      console.error('❌ Unexpected error on idle client:', err);
-    });
+      // Handle pool errors
+      this.pool.on('error', (err) => {
+        console.error('❌ Unexpected error on idle client:', err);
+      });
 
-    console.log('✅ PostgreSQL connection pool initialized');
+      this.initialized = true;
+      this.initError = null;
+      console.log('✅ PostgreSQL connection pool initialized');
+    } catch (error) {
+      this.pool = null;
+      this.initialized = false;
+      this.initError = error?.message || 'Failed to initialize PostgreSQL connection';
+      console.error('❌ Failed to initialize PostgreSQL pool:', error);
+    }
+  }
+
+  isReady() {
+    return this.initialized && !!this.pool;
+  }
+
+  getInitError() {
+    return this.initError;
   }
 
   // Test database connection
   async testConnection() {
     try {
+      this.ensurePool();
       const client = await this.pool.connect();
       const result = await client.query('SELECT NOW() as current_time');
       client.release();
@@ -42,6 +79,7 @@ class DatabaseConnection {
 
   // Execute a query
   async query(text, params = []) {
+    this.ensurePool();
     const start = Date.now();
     try {
       const result = await this.pool.query(text, params);
@@ -80,6 +118,7 @@ class DatabaseConnection {
 
   // Execute a statement (INSERT, UPDATE, DELETE)
   async run(text, params = []) {
+    this.ensurePool();
     const result = await this.query(text, params);
     return {
       rowCount: result.rowCount,
@@ -89,6 +128,7 @@ class DatabaseConnection {
 
   // Begin transaction
   async beginTransaction() {
+    this.ensurePool();
     const client = await this.pool.connect();
     await client.query('BEGIN');
     return client;

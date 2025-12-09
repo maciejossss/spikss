@@ -1,10 +1,51 @@
 const { Pool } = require('pg');
+const fs = require('fs');
+const path = require('path');
+
+const loadDatabaseUrlFromEnvFiles = () => {
+  if (process.env.DATABASE_URL && typeof process.env.DATABASE_URL === 'string' && process.env.DATABASE_URL.trim()) {
+    return;
+  }
+
+  const candidates = [
+    path.resolve(__dirname, '../../.env.local'),
+    path.resolve(__dirname, '../../.env'),
+    path.resolve(__dirname, '../../../.env.local'),
+    path.resolve(__dirname, '../../../.env')
+  ];
+
+  for (const filePath of candidates) {
+    try {
+      if (!fs.existsSync(filePath)) {
+        continue;
+      }
+      const content = fs.readFileSync(filePath, 'utf8');
+      const lines = content.split(/\r?\n/);
+      for (const rawLine of lines) {
+        const line = rawLine.trim();
+        if (!line || line.startsWith('#')) continue;
+        const match = line.match(/^DATABASE_URL\s*=\s*(.+)$/i);
+        if (match) {
+          const value = match[1].trim().replace(/^['"]|['"]$/g, '');
+          if (value) {
+            process.env.DATABASE_URL = value;
+            console.log(`ℹ️ Loaded DATABASE_URL from ${path.basename(filePath)}`);
+            return;
+          }
+        }
+      }
+    } catch (error) {
+      console.warn(`⚠️ Failed to read ${filePath}:`, error?.message || error);
+    }
+  }
+};
 
 class DatabaseConnection {
   constructor() {
     this.pool = null;
     this.initialized = false;
     this.initError = null;
+    loadDatabaseUrlFromEnvFiles();
     this.init();
   }
 

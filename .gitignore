@@ -67,6 +67,7 @@ backups/
 *-backup.*
 test-report-*.json
 error-report.json
+reports/
 
 # Railway deployment
 .railway/

@@ -254,9 +254,9 @@ const main = async () => {
 
     console.log('✅ Zakończono eksport. Sprawdź pliki JSON/CSV w katalogu wynikowym.');
   } finally {
-    await closeLocalDatabase(sqliteDb);
-    await railwayDb.closeConnection?.();
-  }
+  await closeLocalDatabase(sqliteDb);
+  await railwayDb.closeConnection?.();
+}
 };
 
 main().catch((error) => {

@@ -81,6 +81,88 @@ function extractTime(value) {
   } catch (_) { return null; }
 }
 
+function normalizeExternalId(value) {
+  if (value == null) return null;
+  const trimmed = String(value).trim();
+  return trimmed.length ? trimmed : null;
+}
+
+function normalizePlain(value) {
+  if (value == null) return null;
+  const trimmed = String(value).trim().toLowerCase();
+  return trimmed.length ? trimmed : null;
+}
+
+function normalizePhone(value) {
+  if (value == null) return null;
+  const digits = String(value).replace(/\D+/g, '');
+  return digits.length ? digits : null;
+}
+
+function buildClientFingerprint(data) {
+  return {
+    phone: normalizePhone(data?.phone),
+    firstName: normalizePlain(data?.first_name),
+    lastName: normalizePlain(data?.last_name),
+    street: normalizePlain(data?.address_street),
+    city: normalizePlain(data?.address_city)
+  };
+}
+
+async function warnPotentialClientDuplicate(fingerprint, externalId) {
+  try {
+    if (!fingerprint) return;
+    const conditions = [];
+    const params = [];
+    let idx = 1;
+    if (fingerprint.phone) {
+      conditions.push(`REGEXP_REPLACE(COALESCE(phone,''), '\\\\D', '', 'g') = $${idx++}`);
+      params.push(fingerprint.phone);
+    }
+    if (fingerprint.lastName) {
+      conditions.push(`LOWER(COALESCE(last_name,'')) = $${idx++}`);
+      params.push(fingerprint.lastName);
+    }
+    if (!conditions.length) return;
+    const where = conditions.join(' AND ');
+    const { rows } = await db.query(
+      `SELECT external_id FROM clients WHERE ${where} LIMIT 3`,
+      params
+    );
+    if (rows && rows.length > 0) {
+      console.warn(`[SYNC WARNING] potential client duplicate for external_id=${externalId}`, {
+        matches: rows.map(r => r.external_id).filter(Boolean)
+      });
+    }
+  } catch (error) {
+    console.warn('[SYNC WARNING] fingerprint duplicate check failed:', error?.message || error);
+  }
+}
+
+async function warnPotentialDeviceDuplicate(deviceData, externalId) {
+  try {
+    const serial = deviceData && deviceData.serial_number ? String(deviceData.serial_number).trim() : null;
+    if (!serial) return;
+    const { rows } = await db.query('SELECT external_id FROM devices WHERE serial_number = $1 LIMIT 3', [serial]);
+    if (rows && rows.length > 0) {
+      console.warn(`[SYNC WARNING] potential device duplicate for external_id=${externalId}`, {
+        serial_number: serial,
+        matches: rows.map(r => r.external_id).filter(Boolean)
+      });
+    }
+  } catch (error) {
+    console.warn('[SYNC WARNING] serial duplicate check failed:', error?.message || error);
+  }
+}
+
+function logQueuePause(scope, reason, items) {
+  let preview = '';
+  try {
+    preview = JSON.stringify(items).slice(0, 500);
+  } catch (_) {}
+  console.error(`SYNC ERROR 409 ${scope} ${reason} → retry disabled → QUEUE PAUSED ${preview}`);
+}
+
 // POST /api/sync/users - Synchronizuj użytkowników z desktop do Railway
 router.post('/users', async (req, res) => {
   try {
@@ -250,51 +332,54 @@ router.post('/clients', async (req, res) => {
     
     console.log(`📤 Otrzymano ${clientsData.length} klientów do synchronizacji.`);
 
+    const conflicts = [];
+    let inserted = 0;
+    let updated = 0;
+
     for (const clientData of clientsData) {
-      let existingClient = { rows: [] };
-      // PRIORYTET 1: external_id - to jest klucz synchronizacji między desktop a Railway
-      if (clientData.external_id) {
-        existingClient = await db.query('SELECT id FROM clients WHERE external_id = $1 LIMIT 1', [clientData.external_id]);
-      }
-      // PRIORYTET 2: email (fallback dla starych rekordów bez external_id)
-      if ((!existingClient.rows || existingClient.rows.length === 0) && clientData.email) {
-        existingClient = await db.query('SELECT id FROM clients WHERE email = $1 LIMIT 1', [clientData.email]);
-      }
-      // PRIORYTET 3: ID z payloadu (tylko jeśli external_id nie istnieje i email nie pasuje)
-      // Używamy ID tylko jako ostatni fallback, bo Railway ID może różnić się od desktop ID
-      const requestedId = clientData.id != null ? parseInt(clientData.id, 10) : null
-      if ((!existingClient.rows || existingClient.rows.length === 0) && requestedId && Number.isInteger(requestedId) && requestedId > 0) {
-        existingClient = await db.query('SELECT id FROM clients WHERE id = $1 LIMIT 1', [requestedId]);
+      const externalId = normalizeExternalId(clientData.external_id);
+      const fingerprint = buildClientFingerprint(clientData);
+
+      if (!externalId) {
+        conflicts.push({
+          type: 'missing_external_id',
+          fingerprint,
+          email: clientData.email || null
+        });
+        continue;
       }
 
+      const existingClient = await db.query('SELECT id FROM clients WHERE external_id = $1 LIMIT 1', [externalId]);
+
       if (existingClient.rows.length > 0) {
-        // Update existing client
         await db.query(`
           UPDATE clients SET
-            external_id = COALESCE($1, external_id),
+            external_id = $1,
             first_name = $2,
             last_name = $3,
             company_name = $4,
             type = $5,
-            phone = $6,
-            address = $7,
-            address_street = $8,
-            address_city = $9,
-            address_postal_code = $10,
-            address_country = $11,
-            nip = $12,
-            regon = $13,
-            contact_person = $14,
-            notes = $15,
-            is_active = $16,
+            email = $6,
+            phone = $7,
+            address = $8,
+            address_street = $9,
+            address_city = $10,
+            address_postal_code = $11,
+            address_country = $12,
+            nip = $13,
+            regon = $14,
+            contact_person = $15,
+            notes = $16,
+            is_active = $17,
             updated_at = CURRENT_TIMESTAMP
-          WHERE id = $17
+          WHERE id = $18
         `, [
-          clientData.external_id,
+          externalId,
           clientData.first_name,
           clientData.last_name,
           clientData.company_name,
           clientData.type,
+          clientData.email,
           clientData.phone,
           clientData.address,
           clientData.address_street,
@@ -308,10 +393,10 @@ router.post('/clients', async (req, res) => {
           clientData.is_active,
           existingClient.rows[0].id
         ]);
-        console.log(`🔄 Zaktualizowano klienta: ${clientData.email}`);
+        updated++;
+        console.log(`🔄 Zaktualizowano klienta external_id=${externalId}`);
       } else {
-        // Insert new client - Railway użyje AUTO_INCREMENT ID (może różnić się od desktop ID)
-        // Ważne: external_id jest kluczem synchronizacji, nie ID!
+        await warnPotentialClientDuplicate(fingerprint, externalId);
         await db.query(`
           INSERT INTO clients (
             external_id, first_name, last_name, company_name, type, email, phone, address,
@@ -319,7 +404,7 @@ router.post('/clients', async (req, res) => {
             nip, regon, contact_person, notes, is_active
           ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
         `, [
-          clientData.external_id,
+          externalId,
           clientData.first_name,
           clientData.last_name,
           clientData.company_name,
@@ -337,10 +422,26 @@ router.post('/clients', async (req, res) => {
           clientData.notes,
           clientData.is_active
         ]);
-        console.log(`✨ Dodano nowego klienta (external_id=${clientData.external_id}): ${clientData.email}`);
+        inserted++;
+        console.log(`✨ Dodano nowego klienta (external_id=${externalId})`);
       }
     }
-    res.json({ success: true, message: `${clientsData.length} clients synced to Railway PostgreSQL` });
+
+    if (conflicts.length > 0) {
+      logQueuePause('/api/sync/clients', 'missing_or_invalid_external_id', conflicts);
+      return res.status(409).json({
+        success: false,
+        error: 'QUEUE_PAUSED',
+        conflicts,
+        queuePaused: true
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `${clientsData.length} clients processed`,
+      stats: { inserted, updated }
+    });
   } catch (error) {
     console.error('❌ Błąd synchronizacji klientów:', error);
     res.status(500).json({ success: false, error: error.message });
@@ -350,7 +451,6 @@ router.post('/clients', async (req, res) => {
 // POST /api/sync/devices - Synchronizuj urządzenia z desktop do Railway
 router.post('/devices', async (req, res) => {
   try {
-    // Akceptuj trzy formaty: [ ... ], { devices: [...] }, { device: { ... } } lub pojedynczy obiekt
     let devicesData = req.body;
     if (devicesData && typeof devicesData === 'object' && !Array.isArray(devicesData)) {
       if (Array.isArray(devicesData.devices)) devicesData = devicesData.devices;
@@ -358,11 +458,9 @@ router.post('/devices', async (req, res) => {
     }
     if (!Array.isArray(devicesData)) devicesData = [devicesData].filter(Boolean);
     if (!Array.isArray(devicesData)) devicesData = [];
-    // Normalizacja pól wejściowych
     devicesData = devicesData.map(d => ({
       external_id: d?.external_id ?? d?.externalId ?? d?.external_device_id ?? d?.device_external_id ?? null,
       client_external_id: d?.client_external_id ?? d?.external_client_id ?? null,
-      client_id: d?.client_id ?? null,
       category_id: d?.category_id ?? null,
       name: d?.name ?? null,
       manufacturer: d?.manufacturer ?? d?.brand ?? null,
@@ -377,46 +475,53 @@ router.post('/devices', async (req, res) => {
       warranty_end_date: d?.warranty_end_date ?? null,
       technical_data: d?.technical_data ?? null,
       notes: d?.notes ?? null,
-      is_active: (d?.is_active !== false)
+      is_active: (d?.is_active !== false),
+      brand: d?.brand ?? null
     }));
-    
+
     console.log(`📤 Otrzymano ${devicesData.length} urządzeń do synchronizacji.`);
 
-    for (const deviceData of devicesData) {
-      let clientIdResolved = null;
-      try {
-        clientIdResolved = await resolveClientIdSafe({
-          external_client_id: deviceData.client_external_id,
-          client_external_id: deviceData.client_external_id,
-          client_id: deviceData.client_id
-        });
-      } catch (_) { clientIdResolved = null; }
-      const fallbackClientId = deviceData.client_id != null ? Number(deviceData.client_id) : null;
-      const clientIdForInsert = clientIdResolved != null
-        ? clientIdResolved
-        : (Number.isInteger(fallbackClientId) ? fallbackClientId : null);
+    const conflicts = [];
+    let inserted = 0;
+    let updated = 0;
 
-      let existingDevice = { rows: [] };
-      // PRIORYTET 1: external_id - to jest klucz synchronizacji między desktop a Railway
-      if (deviceData.external_id) {
-        existingDevice = await db.query('SELECT id FROM devices WHERE external_id = $1 LIMIT 1', [deviceData.external_id]);
+    for (const deviceData of devicesData) {
+      const externalId = normalizeExternalId(deviceData.external_id);
+      if (!externalId) {
+        conflicts.push({
+          type: 'missing_external_id',
+          serial_number: deviceData.serial_number || null
+        });
+        continue;
       }
-      // PRIORYTET 2: serial_number (fallback dla starych rekordów bez external_id)
-      if ((!existingDevice.rows || existingDevice.rows.length === 0) && deviceData.serial_number) {
-        existingDevice = await db.query('SELECT id FROM devices WHERE serial_number = $1 LIMIT 1', [deviceData.serial_number]);
+
+      const clientExternalId = normalizeExternalId(deviceData.client_external_id);
+      if (!clientExternalId) {
+        conflicts.push({
+          type: 'missing_client_external_id',
+          device_external_id: externalId,
+          serial_number: deviceData.serial_number || null
+        });
+        continue;
       }
-      // PRIORYTET 3: ID z payloadu (tylko jeśli external_id nie istnieje i serial_number nie pasuje)
-      // Używamy ID tylko jako ostatni fallback, bo Railway ID może różnić się od desktop ID
-      const requestedId = deviceData.id != null ? parseInt(deviceData.id, 10) : null
-      if ((!existingDevice.rows || existingDevice.rows.length === 0) && requestedId && Number.isInteger(requestedId) && requestedId > 0) {
-        existingDevice = await db.query('SELECT id FROM devices WHERE id = $1 LIMIT 1', [requestedId]);
+
+      const clientRow = await db.query('SELECT id FROM clients WHERE external_id = $1 LIMIT 1', [clientExternalId]);
+      if (!clientRow.rows || clientRow.rows.length === 0) {
+        conflicts.push({
+          type: 'client_not_found',
+          device_external_id: externalId,
+          client_external_id: clientExternalId
+        });
+        continue;
       }
+
+      const clientIdForInsert = clientRow.rows[0].id;
+      const existingDevice = await db.query('SELECT id FROM devices WHERE external_id = $1 LIMIT 1', [externalId]);
 
       if (existingDevice.rows.length > 0) {
-        // Update existing device
         await db.query(`
           UPDATE devices SET
-            external_id = COALESCE($1, external_id),
+            external_id = $1,
             client_id = $2,
             category_id = $3,
             name = $4,
@@ -433,10 +538,11 @@ router.post('/devices', async (req, res) => {
             notes = $15,
             is_active = $16,
             brand = $17,
+            serial_number = $18,
             updated_at = CURRENT_TIMESTAMP
-          WHERE id = $18
+          WHERE id = $19
         `, [
-          deviceData.external_id,
+          externalId,
           clientIdForInsert,
           deviceData.category_id,
           deviceData.name,
@@ -453,27 +559,25 @@ router.post('/devices', async (req, res) => {
           deviceData.notes,
           deviceData.is_active,
           deviceData.brand,
+          deviceData.serial_number,
           existingDevice.rows[0].id
         ]);
-        console.log(`🔄 Zaktualizowano urządzenie: ${deviceData.serial_number}`);
+        updated++;
+        console.log(`🔄 Zaktualizowano urządzenie external_id=${externalId}`);
       } else {
-        // Insert new device - Railway użyje AUTO_INCREMENT ID (może różnić się od desktop ID)
-        // Ważne: external_id jest kluczem synchronizacji, nie ID!
+        await warnPotentialDeviceDuplicate(deviceData, externalId);
         await db.query(`
           INSERT INTO devices (
-            external_id, client_id, category_id, name, manufacturer, model, serial_number,
-            production_year, power_rating, fuel_type, installation_date,
-            last_service_date, next_service_date, warranty_end_date,
-            technical_data, notes, is_active, brand
+            external_id, client_id, category_id, name, manufacturer, model, production_year, power_rating, fuel_type,
+            installation_date, last_service_date, next_service_date, warranty_end_date, technical_data, notes, is_active, brand, serial_number
           ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
         `, [
-          deviceData.external_id,
+          externalId,
           clientIdForInsert,
           deviceData.category_id,
           deviceData.name,
           deviceData.manufacturer,
           deviceData.model,
-          deviceData.serial_number,
           deviceData.production_year,
           deviceData.power_rating,
           deviceData.fuel_type,
@@ -484,12 +588,29 @@ router.post('/devices', async (req, res) => {
           deviceData.technical_data,
           deviceData.notes,
           deviceData.is_active,
-          deviceData.brand
+          deviceData.brand,
+          deviceData.serial_number
         ]);
-        console.log(`✨ Dodano nowe urządzenie (external_id=${deviceData.external_id}): ${deviceData.serial_number}`);
+        inserted++;
+        console.log(`✨ Dodano nowe urządzenie (external_id=${externalId})`);
       }
     }
-    res.json({ success: true, message: `${devicesData.length} devices synced to Railway PostgreSQL` });
+
+    if (conflicts.length > 0) {
+      logQueuePause('/api/sync/devices', 'missing_dependencies', conflicts);
+      return res.status(409).json({
+        success: false,
+        error: 'QUEUE_PAUSED',
+        conflicts,
+        queuePaused: true
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `${devicesData.length} devices processed`,
+      stats: { inserted, updated }
+    });
   } catch (error) {
     console.error('❌ Błąd synchronizacji urządzeń:', error);
     res.status(500).json({ success: false, error: error.message });
@@ -499,453 +620,346 @@ router.post('/devices', async (req, res) => {
 // POST /api/sync/orders - Synchronizuj zlecenie z desktop do Railway
 router.post('/orders', async (req, res) => {
   try {
-    const ordersData = req.body;
-    
-    // Sprawdź czy ordersData jest tablicą
+    let ordersData = req.body;
+
+    if (ordersData && typeof ordersData === 'object' && !Array.isArray(ordersData)) {
+      if (Array.isArray(ordersData.orders)) ordersData = ordersData.orders;
+      else if (Array.isArray(ordersData.data)) ordersData = ordersData.data;
+      else if (ordersData.order && typeof ordersData.order === 'object') ordersData = [ordersData.order];
+    }
     if (!Array.isArray(ordersData)) {
       console.error('❌ ordersData nie jest tablicą:', typeof ordersData);
-      return res.status(400).json({ 
-        success: false, 
-        error: 'ordersData must be an array' 
+      return res.status(400).json({
+        success: false,
+        error: 'ordersData must be an array'
       });
     }
-    
-    console.log(`📤 Otrzymano ${ordersData.length} zleceń do synchronizacji.`);
 
-    // Helpery mapujące ID klienta/urządzenia z desktop po unikalnych polach na Railway
-    async function resolveClientIdSafe(data) {
-      try {
-        // 1) Preferuj email (najbezpieczniejszy klucz)
-        if (data.client_email) {
-          const { rows } = await db.query('SELECT id FROM clients WHERE email = $1 LIMIT 1', [data.client_email]);
-          if (rows && rows.length > 0) return rows[0].id;
-        }
-        // 2) Opcjonalnie: wspieraj external_id (string)
+    console.log('📤 Otrzymano ' + ordersData.length + ' zleceń do synchronizacji.');
+
+    const conflicts = [];
+    const normalizedOrders = [];
+
+    for (const raw of ordersData) {
+      if (!raw || typeof raw !== 'object') {
+        conflicts.push({ type: 'invalid_payload_shape' });
+        continue;
+      }
+
+      const orderExternalId = normalizeExternalId(
+        raw.external_id ?? raw.externalId ?? raw.order_external_id ?? raw.orderExternalId ?? null
+      );
+      const orderNumber = String(raw.order_number ?? raw.orderNumber ?? '').trim();
+
+      if (!orderExternalId && !orderNumber) {
+        conflicts.push({ type: 'missing_order_identifier' });
+        continue;
+      }
+
+      const clientExternalId = normalizeExternalId(
+        raw.client_external_id ?? raw.external_client_id ?? raw.clientExternalId ?? null
+      );
+      if (!clientExternalId) {
+        conflicts.push({
+          type: 'missing_client_external_id',
+          order_external_id: orderExternalId,
+          order_number: orderNumber || null
+        });
+        continue;
+      }
+      const clientRow = await db.query('SELECT id FROM clients WHERE external_id = $1 LIMIT 1', [clientExternalId]);
+      if (!clientRow.rows || clientRow.rows.length === 0) {
+        conflicts.push({
+          type: 'client_not_found',
+          order_external_id: orderExternalId,
+          order_number: orderNumber || null,
+          client_external_id: clientExternalId
+        });
+        continue;
+      }
+
+      const deviceExternalId = normalizeExternalId(
+        raw.device_external_id ?? raw.external_device_id ?? raw.deviceExternalId ?? null
+      );
+      if (!deviceExternalId) {
+        conflicts.push({
+          type: 'missing_device_external_id',
+          order_external_id: orderExternalId,
+          order_number: orderNumber || null
+        });
+        continue;
+      }
+      const deviceRow = await db.query('SELECT id FROM devices WHERE external_id = $1 LIMIT 1', [deviceExternalId]);
+      if (!deviceRow.rows || deviceRow.rows.length === 0) {
+        conflicts.push({
+          type: 'device_not_found',
+          order_external_id: orderExternalId,
+          order_number: orderNumber || null,
+          device_external_id: deviceExternalId
+        });
+        continue;
+      }
+
+      const assignedUserId = await resolveUserIdSafe(raw.assigned_user_id ?? raw.assignedUserId);
+
+      const serviceCategoriesText = (() => {
         try {
-          const extRaw = (
-            data.external_client_id ??
-            data.client_external_id ??
-            data.external_id ??
-            null
-          );
-          if (extRaw != null && String(extRaw).trim() !== '') {
-            const ext = String(extRaw).trim();
-            const { rows } = await db.query('SELECT id FROM clients WHERE external_id = $1 LIMIT 1', [ext]);
-            if (rows && rows.length > 0) return rows[0].id;
+          const sc = raw.service_categories ?? raw.serviceCategories;
+          if (Array.isArray(sc)) return JSON.stringify(sc);
+          if (sc && typeof sc === 'object') return JSON.stringify(sc);
+          if (typeof sc === 'string') return sc;
+          return null;
+        } catch (_) {
+          return null;
+        }
+      })();
+      const completedCategoriesText = (() => {
+        try {
+          const val = raw.completed_categories ?? raw.completedCategories;
+          if (!val) return null;
+          if (typeof val === 'string') {
+            const trimmed = val.trim();
+            return trimmed.length ? trimmed : null;
           }
-        } catch (_) { /* kolumna może nie istnieć – pomiń */ }
-        // 3) NIE ufaj lokalnemu client_id z desktopu (może kolidować z innym klientem na Railway)
-      } catch (_) {}
-      return null;
+          return JSON.stringify(val);
+        } catch (_) {
+          return null;
+        }
+      })();
+      const workPhotosText = (() => {
+        try {
+          const val = raw.work_photos ?? raw.workPhotos;
+          if (!val) return null;
+          if (typeof val === 'string') {
+            const trimmed = val.trim();
+            return trimmed.length ? trimmed : null;
+          }
+          return JSON.stringify(val);
+        } catch (_) {
+          return null;
+        }
+      })();
+
+      const title = (() => {
+        const value = raw.title ?? raw.description ?? 'Zlecenie serwisowe';
+        const str = String(value);
+        return str.length > 255 ? str.slice(0, 255) : str;
+      })();
+
+      const description = raw.description != null ? String(raw.description) : null;
+      const scheduledDateRaw = raw.scheduled_date ?? raw.scheduledDate ?? null;
+      const scheduledDate = sanitizeDate(scheduledDateRaw);
+      const scheduledTime = extractTime(scheduledDateRaw);
+      const actualStartDate = sanitizeDate(raw.actual_start_date ?? raw.actualStartDate ?? raw.started_at ?? null);
+      const actualEndDate = sanitizeDate(raw.actual_end_date ?? raw.actualEndDate ?? raw.completed_at ?? null);
+      const startedAt = raw.started_at ?? null;
+      const completedAt = raw.completed_at ?? null;
+      const estimatedHours = sanitizeNumber(raw.estimated_hours);
+      const actualHours = sanitizeNumber(raw.actual_hours ?? raw.actualHours);
+      const laborCost = sanitizeNumber(raw.labor_cost);
+      const partsCost = sanitizeNumber(raw.parts_cost);
+      const totalCost = sanitizeNumber(raw.total_cost);
+      const estimatedCostNote = raw.estimated_cost_note ?? raw.estimate_text ?? null;
+      const notes = raw.notes ?? null;
+      const completionNotes = raw.completion_notes ?? raw.completionNotes ?? null;
+      const partsUsed = (() => {
+        const val = raw.parts_used;
+        if (val == null) return null;
+        const str = String(val).trim();
+        return str.length ? str : null;
+      })();
+
+      normalizedOrders.push({
+        orderExternalId,
+        orderNumber,
+        clientId: clientRow.rows[0].id,
+        deviceId: deviceRow.rows[0].id,
+        assignedUserId,
+        status: raw.status ?? 'new',
+        priority: raw.priority ?? 'medium',
+        type: raw.type ?? 'maintenance',
+        title,
+        description,
+        scheduledDate,
+        scheduledTime,
+        actualStartDate,
+        actualEndDate,
+        startedAt,
+        completedAt,
+        estimatedHours,
+        actualHours,
+        laborCost,
+        partsCost,
+        totalCost,
+        estimatedCostNote,
+        notes,
+        completionNotes,
+        serviceCategoriesText,
+        completedCategoriesText,
+        workPhotosText,
+        partsUsed
+      });
     }
 
-    async function resolveDeviceIdSafe(data) {
-      try {
-        const deviceExtRaw = data.external_device_id ?? data.device_external_id ?? data.external_id ?? null;
-        if (deviceExtRaw != null && String(deviceExtRaw).trim() !== '') {
-          const ext = String(deviceExtRaw).trim();
-          const { rows } = await db.query('SELECT id FROM devices WHERE external_id = $1 LIMIT 1', [ext]);
-          if (rows && rows.length > 0) return rows[0].id;
-        }
-        // Ufać tylko numerowi seryjnemu – ID z desktopu może wskazać inne urządzenie w Railway
-        if (data.device_serial) {
-          const { rows } = await db.query('SELECT id FROM devices WHERE serial_number = $1 LIMIT 1', [data.device_serial]);
-          if (rows && rows.length > 0) return rows[0].id;
-        }
-      } catch (_) {}
-      return null;
+    if (conflicts.length > 0) {
+      logQueuePause('/api/sync/orders', 'missing_dependencies_or_identifiers', conflicts);
+      return res.status(409).json({
+        success: false,
+        error: 'QUEUE_PAUSED',
+        conflicts,
+        queuePaused: true
+      });
     }
 
-    const client = await db.beginTransaction();
+    const pgClient = await db.beginTransaction();
+    let inserted = 0;
+    let updated = 0;
+
     try {
-      for (const orderData of ordersData) {
-        console.log('📤 Synchronizuję zlecenie:', orderData.order_number);
-        const clientIdResolved = await resolveClientIdSafe(orderData);
-        const deviceIdResolved = await resolveDeviceIdSafe(orderData);
-        const externalId = (orderData.external_id != null ? parseInt(orderData.external_id) : (orderData.id != null ? parseInt(orderData.id) : null)) || null;
-        const assignedUserResolved = await resolveUserIdSafe(orderData.assigned_user_id);
-        const serviceCategoriesText = (() => {
-          try {
-            const sc = orderData && orderData.service_categories;
-            if (Array.isArray(sc)) return JSON.stringify(sc);
-            if (sc && typeof sc === 'object') return JSON.stringify(sc);
-            if (typeof sc === 'string') return sc;
-            return null;
-          } catch (_) { return null; }
-        })();
-        const safeTitle = (orderData && (orderData.title || orderData.description)) || 'Zlecenie serwisowe';
-        const scheduledDate = sanitizeDate(orderData && orderData.scheduled_date);
-        const scheduledTime = extractTime(orderData && orderData.scheduled_date);
-        try { console.log('[SYNC] incoming scheduled_date=', orderData && orderData.scheduled_date, '→ date=', scheduledDate, 'time=', scheduledTime); } catch (_) {}
-        const estimatedHours = sanitizeNumber(orderData && orderData.estimated_hours);
-        const partsCost = sanitizeNumber(orderData && orderData.parts_cost);
-        const laborCost = sanitizeNumber(orderData && orderData.labor_cost);
-        const totalCost = sanitizeNumber(orderData && orderData.total_cost);
-        const partsUsed = (orderData.parts_used && String(orderData.parts_used).trim() !== '') 
-          ? String(orderData.parts_used).trim() 
-          : null;
-        const completedAt = orderData.completed_at || null;
-        const completionNotes = orderData.completion_notes ?? orderData.completionNotes ?? null;
-        const completedCategoriesText = (() => {
-          try {
-            const raw = orderData.completed_categories ?? orderData.completedCategories;
-            if (!raw) return null;
-            if (typeof raw === 'string') {
-              const trimmed = raw.trim();
-              return trimmed.length ? trimmed : null;
-            }
-            return JSON.stringify(raw);
-          } catch (_) {
-            return null;
-          }
-        })();
-        const workPhotosText = (() => {
-          try {
-            const raw = orderData.work_photos ?? orderData.workPhotos;
-            if (!raw) return null;
-            if (typeof raw === 'string') {
-              const trimmed = raw.trim();
-              return trimmed.length ? trimmed : null;
-            }
-            return JSON.stringify(raw);
-          } catch (_) {
-            return null;
-          }
-        })();
-        const actualHours = sanitizeNumber(orderData.actual_hours ?? orderData.actualHours);
-        const actualStartDate = sanitizeDate(orderData.actual_start_date ?? orderData.actualStartDate ?? orderData.started_at);
-        const actualEndDate = sanitizeDate(orderData.actual_end_date ?? orderData.actualEndDate ?? orderData.completed_at);
-        const startedAtValue = orderData.started_at || null;
-        
-        let existingByExternal = { rows: [] };
-        if (externalId) {
-          try {
-            existingByExternal = await client.query('SELECT id FROM service_orders WHERE external_id = $1', [externalId]);
-          } catch (_) { existingByExternal = { rows: [] }; }
+      for (const order of normalizedOrders) {
+        let existing = null;
+
+        if (order.orderExternalId) {
+          existing = await pgClient.query('SELECT id FROM service_orders WHERE external_id = $1 LIMIT 1', [order.orderExternalId]);
         }
 
-        let existingByNumber = { rows: [] };
-        if (!existingByExternal.rows.length && orderData.order_number) {
-          existingByNumber = await client.query('SELECT id, client_id, device_id FROM service_orders WHERE order_number = $1', [orderData.order_number]);
+        if (!existing || existing.rows.length === 0) {
+          existing = await pgClient.query('SELECT id FROM service_orders WHERE order_number = $1 LIMIT 1', [order.orderNumber]);
         }
-        
-        if (existingByExternal.rows.length > 0) {
-          const recId = existingByExternal.rows[0].id;
-          await client.query(`
-            UPDATE service_orders SET
-              external_id = COALESCE($1, external_id),
-              client_id = COALESCE($2, client_id),
-              device_id = COALESCE($3, device_id),
-              assigned_user_id = COALESCE($4, assigned_user_id),
-              type = $5,
-              service_categories = $6,
-              completed_categories = COALESCE($7, completed_categories),
-              status = $8,
-              priority = $9,
-              title = $10,
-              description = $11,
-              scheduled_date = $12,
-              scheduled_time = COALESCE($13, scheduled_time),
-              actual_start_date = COALESCE($14, actual_start_date),
-              actual_end_date = COALESCE($15, actual_end_date),
-              started_at = COALESCE($16, started_at),
-              completed_at = COALESCE($17, completed_at),
-              estimated_hours = $18,
-              actual_hours = COALESCE($19, actual_hours),
-              parts_cost = $20,
-              labor_cost = $21,
-              total_cost = $22,
-              estimated_cost_note = COALESCE($23, estimated_cost_note),
-              notes = COALESCE($24, notes),
-              completion_notes = COALESCE($25, completion_notes),
-              parts_used = COALESCE($26, parts_used),
-              work_photos = COALESCE($27, work_photos),
-              updated_at = CURRENT_TIMESTAMP
-            WHERE id = $28
+
+        if (existing && existing.rows.length > 0) {
+          await pgClient.query(`
+            UPDATE service_orders
+               SET external_id = $1,
+                   order_number = $2,
+                   client_id = $3,
+                   device_id = $4,
+                   assigned_user_id = $5,
+                   status = $6,
+                   priority = $7,
+                   type = $8,
+                   title = $9,
+                   description = $10,
+                   scheduled_date = $11,
+                   scheduled_time = $12,
+                   actual_start_date = $13,
+                   actual_end_date = $14,
+                   started_at = $15,
+                   completed_at = $16,
+                   estimated_hours = $17,
+                   actual_hours = $18,
+                   labor_cost = $19,
+                   parts_cost = $20,
+                   total_cost = $21,
+                   estimated_cost_note = $22,
+                   notes = $23,
+                   completion_notes = $24,
+                   service_categories = $25,
+                   completed_categories = $26,
+                   work_photos = $27,
+                   parts_used = $28,
+                   updated_at = CURRENT_TIMESTAMP
+             WHERE id = $29
           `, [
-            externalId,
-            clientIdResolved,
-            deviceIdResolved,
-            assignedUserResolved || null,
-            orderData.type,
-            serviceCategoriesText,
-            completedCategoriesText,
-            orderData.status || 'new',
-            orderData.priority || 'medium',
-            safeTitle,
-            orderData.description,
-            scheduledDate,
-            scheduledTime,
-            actualStartDate,
-            actualEndDate,
-            startedAtValue,
-            completedAt,
-            estimatedHours,
-            actualHours,
-            partsCost,
-            laborCost,
-            totalCost,
-            orderData.estimated_cost_note || orderData.estimate_text || null,
-            orderData.notes,
-            completionNotes,
-            partsUsed,
-            workPhotosText,
-            recId
+            order.orderExternalId,
+            order.orderNumber,
+            order.clientId,
+            order.deviceId,
+            order.assignedUserId,
+            order.status,
+            order.priority,
+            order.type,
+            order.title,
+            order.description,
+            order.scheduledDate,
+            order.scheduledTime,
+            order.actualStartDate,
+            order.actualEndDate,
+            order.startedAt,
+            order.completedAt,
+            order.estimatedHours,
+            order.actualHours,
+            order.laborCost,
+            order.partsCost,
+            order.totalCost,
+            order.estimatedCostNote,
+            order.notes,
+            order.completionNotes,
+            order.serviceCategoriesText,
+            order.completedCategoriesText,
+            order.workPhotosText,
+            order.partsUsed,
+            existing.rows[0].id
           ]);
-          console.log('✅ Zlecenie zaktualizowane w Railway (external_id)');
-        } else if (existingByNumber.rows.length > 0) {
-          console.log('⚠️ Zlecenie już istnieje, aktualizuję...');
-          const current = existingByNumber.rows[0];
-          const mismatch = (
-            (clientIdResolved && current.client_id && clientIdResolved !== current.client_id) ||
-            (deviceIdResolved && current.device_id && deviceIdResolved !== current.device_id)
-          );
-          if (mismatch) {
-            const hasReliableClientMapping = !!orderData.client_email && !!clientIdResolved;
-            if (hasReliableClientMapping) {
-              const pick = await client.query(
-                `SELECT id FROM service_orders WHERE order_number = $1 ORDER BY updated_at DESC NULLS LAST, id DESC LIMIT 1`,
-                [orderData.order_number]
-              );
-              const targetId = (pick.rows && pick.rows[0]) ? pick.rows[0].id : null;
-              if (targetId) {
-              await client.query(`
-                  UPDATE service_orders SET
-                    external_id = COALESCE($1, external_id),
-                    client_id = COALESCE($2, client_id),
-                    device_id = COALESCE($3, device_id),
-                    assigned_user_id = COALESCE($4, assigned_user_id),
-                    type = $5,
-                    service_categories = $6,
-                    completed_categories = COALESCE($7, completed_categories),
-                    status = $8,
-                    priority = $9,
-                    title = $10,
-                    description = $11,
-                    scheduled_date = $12,
-                    scheduled_time = COALESCE($13, scheduled_time),
-                    actual_start_date = COALESCE($14, actual_start_date),
-                    actual_end_date = COALESCE($15, actual_end_date),
-                    started_at = COALESCE($16, started_at),
-                    completed_at = COALESCE($17, completed_at),
-                    estimated_hours = $18,
-                    actual_hours = COALESCE($19, actual_hours),
-                    parts_cost = $20,
-                    labor_cost = $21,
-                    total_cost = $22,
-                    estimated_cost_note = COALESCE($23, estimated_cost_note),
-                    notes = COALESCE($24, notes),
-                    completion_notes = COALESCE($25, completion_notes),
-                    parts_used = COALESCE($26, parts_used),
-                    work_photos = COALESCE($27, work_photos),
-                    updated_at = CURRENT_TIMESTAMP
-                  WHERE id = $28
-                `, [
-                  externalId,
-                  clientIdResolved,
-                  deviceIdResolved,
-                  assignedUserResolved || null,
-                  orderData.type,
-                  serviceCategoriesText,
-                  completedCategoriesText,
-                  orderData.status || 'new',
-                  orderData.priority || 'medium',
-                  safeTitle,
-                  orderData.description,
-                  scheduledDate,
-                  scheduledTime,
-                  actualStartDate,
-                  actualEndDate,
-                  startedAtValue,
-                  completedAt,
-                  estimatedHours,
-                  actualHours,
-                  partsCost,
-                  laborCost,
-                  totalCost,
-                  orderData.estimated_cost_note || orderData.estimate_text || null,
-                  orderData.notes,
-                  completionNotes,
-                  partsUsed,
-                  workPhotosText,
-                  targetId
-                ]);
-                try {
-                  await client.query(
-                    `UPDATE service_orders SET status = CASE WHEN status = 'completed' THEN status ELSE 'archived' END, updated_at = CURRENT_TIMESTAMP
-                     WHERE order_number = $1 AND id <> $2`,
-                    [orderData.order_number, targetId]
-                  );
-                } catch (_) {}
-              }
-              console.log('✅ Naprawiono mapowanie klienta/urządzenia dla istniejącego order_number na Railway');
-            } else {
-              const newOrderNumber = `${String(orderData.order_number)}-${Date.now().toString().slice(-4)}`;
-              await client.query(`
-                INSERT INTO service_orders (
-                  order_number, external_id, client_id, device_id, type, service_categories, completed_categories,
-                  status, priority, title, description, scheduled_date, scheduled_time,
-                  actual_start_date, actual_end_date, started_at, completed_at,
-                  estimated_hours, actual_hours, parts_cost, labor_cost, total_cost,
-                  estimated_cost_note, notes, completion_notes, parts_used, work_photos,
-                  assigned_user_id
-                ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28)
-              `, [
-                newOrderNumber,
-                externalId,
-                clientIdResolved,
-                deviceIdResolved,
-                orderData.type,
-                orderData.service_categories,
-                completedCategoriesText,
-                orderData.status || 'new',
-                orderData.priority || 'medium',
-                orderData.title,
-                orderData.description,
-                scheduledDate,
-                scheduledTime,
-                actualStartDate,
-                actualEndDate,
-                startedAtValue,
-                completedAt,
-                estimatedHours,
-                actualHours,
-                partsCost || 0,
-                laborCost || 0,
-                totalCost || 0,
-                orderData.estimated_cost_note || orderData.estimate_text || null,
-                orderData.notes,
-                completionNotes,
-                partsUsed,
-                workPhotosText,
-                assignedUserResolved || null
-              ]);
-              console.log('✅ Utworzono nowe zlecenie (unik kolizji order_number) w Railway');
-            }
-          } else {
-            await client.query(`
-            UPDATE service_orders SET
-              external_id = COALESCE($1, external_id),
-              client_id = COALESCE($2, client_id),
-              device_id = COALESCE($3, device_id),
-              assigned_user_id = COALESCE($4, assigned_user_id),
-              type = $5,
-              service_categories = $6,
-              completed_categories = COALESCE($7, completed_categories),
-              status = $8,
-              priority = $9,
-              title = $10,
-              description = $11,
-              scheduled_date = $12,
-              scheduled_time = COALESCE($13, scheduled_time),
-              actual_start_date = COALESCE($14, actual_start_date),
-              actual_end_date = COALESCE($15, actual_end_date),
-              started_at = COALESCE($16, started_at),
-              completed_at = COALESCE($17, completed_at),
-              estimated_hours = $18,
-              actual_hours = COALESCE($19, actual_hours),
-              parts_cost = $20,
-              labor_cost = $21,
-              total_cost = $22,
-              estimated_cost_note = COALESCE($23, estimated_cost_note),
-              notes = COALESCE($24, notes),
-              completion_notes = COALESCE($25, completion_notes),
-              parts_used = COALESCE($26, parts_used),
-              work_photos = COALESCE($27, work_photos),
-              updated_at = CURRENT_TIMESTAMP
-            WHERE order_number = $28
-          `, [
-            externalId,
-            clientIdResolved,
-            deviceIdResolved,
-            assignedUserResolved || null,
-            orderData.type,
-            serviceCategoriesText,
-            completedCategoriesText,
-            orderData.status || 'new',
-            orderData.priority || 'medium',
-            safeTitle,
-            orderData.description,
-            scheduledDate,
-            scheduledTime,
-            actualStartDate,
-            actualEndDate,
-            startedAtValue,
-            completedAt,
-            estimatedHours,
-            actualHours,
-            partsCost,
-            laborCost,
-            totalCost,
-            orderData.estimated_cost_note || orderData.estimate_text || null,
-            orderData.notes,
-            completionNotes,
-            partsUsed,
-            workPhotosText,
-            orderData.order_number
-          ]);
-            console.log('✅ Zlecenie zaktualizowane w Railway');
-          }
+          updated++;
         } else {
-          console.log('📋 Tworzę nowe zlecenie w Railway...');
-          await client.query(`
+          await pgClient.query(`
             INSERT INTO service_orders (
-              order_number, external_id, client_id, device_id, type, service_categories, completed_categories,
-              status, priority, title, description, scheduled_date, scheduled_time,
+              external_id, order_number, client_id, device_id, assigned_user_id,
+              status, priority, type, title, description, scheduled_date, scheduled_time,
               actual_start_date, actual_end_date, started_at, completed_at,
-              estimated_hours, actual_hours, parts_cost, labor_cost, total_cost, estimated_cost_note,
-              notes, completion_notes, parts_used, work_photos, assigned_user_id
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28)
+              estimated_hours, actual_hours, labor_cost, parts_cost, total_cost,
+              estimated_cost_note, notes, completion_notes, service_categories,
+              completed_categories, work_photos, parts_used, created_at, updated_at
+            ) VALUES (
+              $1, $2, $3, $4, $5,
+              $6, $7, $8, $9, $10, $11, $12,
+              $13, $14, $15, $16,
+              $17, $18, $19, $20, $21,
+              $22, $23, $24, $25,
+              $26, $27, $28, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+            )
           `, [
-            orderData.order_number,
-            externalId,
-            clientIdResolved,
-            deviceIdResolved,
-            orderData.type,
-            serviceCategoriesText,
-            completedCategoriesText,
-            orderData.status || 'new',
-            orderData.priority || 'medium',
-            safeTitle,
-            orderData.description,
-            scheduledDate,
-            scheduledTime,
-            actualStartDate,
-            actualEndDate,
-            startedAtValue,
-            completedAt,
-            estimatedHours,
-            actualHours,
-            partsCost,
-            laborCost,
-            totalCost,
-            orderData.estimated_cost_note || orderData.estimate_text || null,
-            orderData.notes,
-            completionNotes,
-            partsUsed,
-            workPhotosText,
-            assignedUserResolved || null
+            order.orderExternalId,
+            order.orderNumber,
+            order.clientId,
+            order.deviceId,
+            order.assignedUserId,
+            order.status,
+            order.priority,
+            order.type,
+            order.title,
+            order.description,
+            order.scheduledDate,
+            order.scheduledTime,
+            order.actualStartDate,
+            order.actualEndDate,
+            order.startedAt,
+            order.completedAt,
+            order.estimatedHours,
+            order.actualHours,
+            order.laborCost,
+            order.partsCost,
+            order.totalCost,
+            order.estimatedCostNote,
+            order.notes,
+            order.completionNotes,
+            order.serviceCategoriesText,
+            order.completedCategoriesText,
+            order.workPhotosText,
+            order.partsUsed
           ]);
-          console.log('✅ Nowe zlecenie utworzone w Railway');
+          inserted++;
         }
       }
-      await db.commitTransaction(client);
-    } catch (e) {
-      try { await db.rollbackTransaction(client); } catch (_) {}
-      throw e;
+
+      await db.commitTransaction(pgClient);
+    } catch (transactionError) {
+      await db.rollbackTransaction(pgClient);
+      throw transactionError;
     }
-    
+
     res.json({
       success: true,
-      message: `${ordersData.length} zleceń zsynchronizowanych`,
-      count: ordersData.length
+      message: normalizedOrders.length + ' orders processed',
+      stats: { inserted, updated }
     });
-    
   } catch (error) {
     console.error('❌ Błąd synchronizacji zleceń:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
+
 
 // POST /api/sync/orders/attach
 // Body: { orderNumber: string, client_email?: string, device_serial?: string }
@@ -1145,4 +1159,6 @@ router.delete && router.delete('/orders/by-number/:orderNumber', async (req, res
     console.error('DELETE /api/sync/orders/by-number/:orderNumber error', error)
     return res.status(500).json({ success: false, error: 'Server error' })
   }
+})
+})
 })

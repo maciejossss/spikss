@@ -6963,6 +6963,29 @@ class APIServer {
               console.log(`🔄 [SYNC] Desktop→Railway: ${pending.length} zleceń do synchronizacji`)
 
               // Dla stabilności – zsynchronizuj użytkowników, urządzenia i klientów (best-effort)
+          try {
+            const users = await this.db.all('SELECT id, username, full_name, email, role, is_active, phone, mobile_pin_hash FROM users')
+            const userResp = await fetch(`${RAILWAY_API_BASE.replace(/\/$/, '')}/sync/users`, {
+              method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(users || [])
+            }).catch(()=> null)
+            if (userResp && userResp.ok) console.log(`✅ [SYNC] Zsynchronizowano ${users.length} użytkowników`)
+          } catch (e) { console.warn('⚠️ [SYNC] Błąd sync użytkowników:', e.message) }
+
+          try {
+            const clients = await this.db.all('SELECT * FROM clients')
+            const cliResp = await fetch(`${RAILWAY_API_BASE.replace(/\/$/, '')}/sync/clients`, {
+              method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(clients || [])
+            }).catch(()=> null)
+            if (cliResp && cliResp.ok) console.log(`✅ [SYNC] Zsynchronizowano ${clients.length} klientów`)
+          } catch (e) { console.warn('⚠️ [SYNC] Błąd sync klientów:', e.message) }
+
+          try {
+            const devices = await this.db.all('SELECT * FROM devices')
+            const devResp = await fetch(`${RAILWAY_API_BASE.replace(/\/$/, '')}/sync/devices`, {
+              method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(devices || [])
+            }).catch(()=> null)
+            if (devResp && devResp.ok) console.log(`✅ [SYNC] Zsynchronizowano ${devices.length} urządzeń`)
+          } catch (e) { console.warn('⚠️ [SYNC] Błąd sync urządzeń:', e.message) }
               try {
                 const users = await this.db.all('SELECT id, username, full_name, email, role, is_active, phone, mobile_pin_hash FROM users')
                 const userResp = await fetch(`${RAILWAY_API_BASE.replace(/\/$/, '')}/sync/users`, {
@@ -6970,15 +6993,7 @@ class APIServer {
                 }).catch(()=> null)
                 if (userResp && userResp.ok) console.log(`✅ [SYNC] Zsynchronizowano ${users.length} użytkowników`)
               } catch (e) { console.warn('⚠️ [SYNC] Błąd sync użytkowników:', e.message) }
-              
-              try {
-                const devices = await this.db.all('SELECT * FROM devices')
-                const devResp = await fetch(`${RAILWAY_API_BASE.replace(/\/$/, '')}/sync/devices`, {
-                  method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(devices || [])
-                }).catch(()=> null)
-                if (devResp && devResp.ok) console.log(`✅ [SYNC] Zsynchronizowano ${devices.length} urządzeń`)
-              } catch (e) { console.warn('⚠️ [SYNC] Błąd sync urządzeń:', e.message) }
-              
+
               try {
                 const clients = await this.db.all('SELECT * FROM clients')
                 const cliResp = await fetch(`${RAILWAY_API_BASE.replace(/\/$/, '')}/sync/clients`, {
@@ -6986,6 +7001,14 @@ class APIServer {
                 }).catch(()=> null)
                 if (cliResp && cliResp.ok) console.log(`✅ [SYNC] Zsynchronizowano ${clients.length} klientów`)
               } catch (e) { console.warn('⚠️ [SYNC] Błąd sync klientów:', e.message) }
+
+              try {
+                const devices = await this.db.all('SELECT * FROM devices')
+                const devResp = await fetch(`${RAILWAY_API_BASE.replace(/\/$/, '')}/sync/devices`, {
+                  method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(devices || [])
+                }).catch(()=> null)
+                if (devResp && devResp.ok) console.log(`✅ [SYNC] Zsynchronizowano ${devices.length} urządzeń`)
+              } catch (e) { console.warn('⚠️ [SYNC] Błąd sync urządzeń:', e.message) }
 
               // Synchronizuj zlecenia z retry
               let successCount = 0
